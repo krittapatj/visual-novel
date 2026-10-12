@@ -1,5 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, LogOut, UserRound } from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import {
+  BookOpen,
+  LogOut,
+  UserRound,
+  LayoutDashboard
+} from 'lucide-react';
+
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
@@ -11,36 +17,59 @@ export default function Navbar() {
     navigate('/');
   };
 
+  const navClass = ({ isActive }) =>
+    isActive
+      ? 'text-purple-400'
+      : 'text-gray-300 hover:text-white';
+
   return (
     <header className="border-b border-white/10 bg-[#10101b]">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+      <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4">
         <Link
           to="/"
-          className="flex items-center gap-2 text-xl font-bold text-white"
+          className="flex items-center gap-2 text-xl font-bold"
         >
           <BookOpen className="text-purple-400" />
           Visual Novel
         </Link>
 
-        <div className="flex items-center gap-4 text-sm">
-          <Link
-            to="/"
-            className="text-gray-300 hover:text-white"
-          >
+        <div className="flex flex-wrap items-center gap-5 text-sm">
+          <NavLink to="/games" className={navClass}>
             Explore
-          </Link>
+          </NavLink>
 
           {user ? (
             <>
-              <Link
+              <NavLink
+                to="/creator"
+                className={({ isActive }) =>
+                  `flex items-center gap-2 ${
+                    isActive
+                      ? 'text-purple-400'
+                      : 'text-gray-300 hover:text-white'
+                  }`
+                }
+              >
+                <LayoutDashboard size={17} />
+                Creator Studio
+              </NavLink>
+
+              <NavLink
                 to="/profile"
-                className="flex items-center gap-2 text-gray-300 hover:text-white"
+                className={({ isActive }) =>
+                  `flex items-center gap-2 ${
+                    isActive
+                      ? 'text-purple-400'
+                      : 'text-gray-300 hover:text-white'
+                  }`
+                }
               >
                 <UserRound size={17} />
                 {user.display_name || user.username}
-              </Link>
+              </NavLink>
 
               <button
+                type="button"
                 onClick={handleLogout}
                 className="flex items-center gap-2 text-red-300 hover:text-red-200"
               >
@@ -50,16 +79,13 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="text-gray-300 hover:text-white"
-              >
+              <Link to="/login" className="text-gray-300">
                 Login
               </Link>
 
               <Link
                 to="/register"
-                className="rounded-lg bg-purple-600 px-4 py-2 font-medium text-white hover:bg-purple-500"
+                className="rounded-lg bg-purple-600 px-4 py-2 font-medium hover:bg-purple-500"
               >
                 Sign Up
               </Link>
