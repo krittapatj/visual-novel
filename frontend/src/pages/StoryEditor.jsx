@@ -28,6 +28,8 @@ import NodeProperties from "../components/editor/NodeProperties";
 import FormStoryEditor from "../components/editor/FormStoryEditor";
 import StoryPreview from "../components/editor/StoryPreview";
 import { randomUUID } from "../components/editor/uuid";
+import { getAssets } from "../api/assets";
+import { getCharacters } from "../api/characters";
 
 const nodeTypes = {
   story: StoryNode,
@@ -99,6 +101,9 @@ function StoryEditorContent() {
 
   const [edges, setEdges] = useState([]);
 
+  const [assets, setAssets] = useState([]);
+  const [characters, setCharacters] = useState([]);
+
   const [selectedNodeId, setSelectedNodeId] = useState(null);
 
   const [mode, setMode] = useState("visual");
@@ -142,15 +147,18 @@ function StoryEditorContent() {
       setError("");
 
       try {
-        const [gameData, graph] = await Promise.all([
+        const [gameData, graph, assetData, characterData] = await Promise.all([
           getMyGame(gameId),
-
           getStoryGraph(chapterId),
+          getAssets(gameId),
+          getCharacters(gameId),
         ]);
 
         if (!active) return;
 
         setGame(gameData);
+        setAssets(assetData);
+        setCharacters(characterData);
 
         setNodes((graph.nodes || []).map(toFlowNode));
 
@@ -591,6 +599,8 @@ function StoryEditorContent() {
           onUpdate={updateNode}
           onDelete={deleteNode}
           onRemoveOption={removeOption}
+          assets={assets}
+          characters={characters}
         />
       </div>
 
@@ -598,6 +608,8 @@ function StoryEditorContent() {
         <StoryPreview
           nodes={nodes}
           edges={edges}
+          assets={assets}
+          characters={characters}
           onClose={() => setPreview(false)}
         />
       )}

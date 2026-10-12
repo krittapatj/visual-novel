@@ -8,6 +8,7 @@ const chapterRoutes = require('./routes/chapterRoutes');
 const storyRoutes = require('./routes/storyRoutes');
 const path = require('path');
 const assetRoutes = require('./routes/assetRoutes');
+const characterRoutes = require("./routes/characterRoutes");
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use(
   '/uploads',
   express.static(path.join(__dirname, '../uploads'))
 );
+app.use("/api/creator", characterRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

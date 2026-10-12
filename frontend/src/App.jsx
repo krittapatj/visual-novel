@@ -18,6 +18,7 @@ import EditGame from "./pages/EditGame";
 import ChapterManager from "./pages/ChapterManager";
 import StoryEditor from "./pages/StoryEditor";
 import AssetManager from "./pages/AssetManager";
+import CharacterManager from "./pages/CharacterManager";
 
 export default function App() {
   return (
@@ -55,6 +56,10 @@ export default function App() {
               <Route
                 path="/creator/games/:gameId/assets"
                 element={<AssetManager />}
+              />
+              <Route
+                path="/creator/games/:gameId/characters"
+                element={<CharacterManager />}
               />
             </Route>
 
