@@ -6,6 +6,8 @@ const authRoutes = require('./routes/authRoutes');
 const gameRoutes = require('./routes/gameRoutes');
 const chapterRoutes = require('./routes/chapterRoutes');
 const storyRoutes = require('./routes/storyRoutes');
+const path = require('path');
+const assetRoutes = require('./routes/assetRoutes');
 
 const app = express();
 
@@ -30,6 +32,11 @@ app.use('/api', gameRoutes);
 
 app.use('/api/creator', chapterRoutes);
 app.use('/api/creator', storyRoutes);
+app.use('/api/creator', assetRoutes);
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, '../uploads'))
+);
 
 app.use((req, res) => {
   res.status(404).json({
