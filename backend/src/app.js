@@ -12,7 +12,7 @@ const characterRoutes = require("./routes/characterRoutes");
 const publishingRoutes = require('./routes/publishingRoutes');
 const publicPlayerRoutes = require('./routes/publicPlayerRoutes');
 const saveSlotRoutes = require("./routes/saveSlotRoutes");
-
+const myGamesRoutes = require("./routes/myGamesRoutes");
 
 // Create an Express application
 const app = express();
@@ -47,7 +47,7 @@ app.use("/api/creator", characterRoutes);
 app.use('/api', publishingRoutes);
 app.use('/api', publicPlayerRoutes);
 app.use("/api", saveSlotRoutes);
-
+app.use("/api", myGamesRoutes);
 
 // Catch-all route for undefined endpoints
 app.use((req, res) => {

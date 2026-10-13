@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -9,33 +9,45 @@ import {
   AlertCircle,
   Save,
   FolderOpen,
+  Settings,
+  History,
+  CheckCircle2,
 } from "lucide-react";
 
 import { getPublishedGameForPlay } from "../api/player";
-import { saveGameToSlot, loadGameFromSlot } from "../api/saveSlots";
+import {
+  saveGameToSlot,
+  loadGameFromSlot,
+  saveAutoGame,
+  loadAutoGame,
+} from "../api/saveSlots";
+
 import SaveLoadModal from "../components/player/SaveLoadModal";
+import PlayerSettingsModal from "../components/player/PlayerSettingsModal";
+import DialogueHistoryModal from "../components/player/DialogueHistoryModal";
+
+import {
+  loadPlayerSettings,
+  savePlayerSettings,
+} from "../utils/playerSettings";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const getAssetUrl = (path) => {
   if (!path) return null;
-
   if (/^https?:\/\//i.test(path)) return path;
 
   const origin = API_BASE.replace(/\/api\/?$/, "");
-
   return `${origin}/${String(path).replace(/^\/+/, "")}`;
 };
 
 const readValue = (...values) =>
   values.find((value) => value !== undefined && value !== null);
 
-const findStartNode = (nodes = []) =>
-  nodes.find(
-    (node) => node.data?.nodeType === "start" || node.type === "start",
-  );
-
 const getNodeType = (node) => node?.data?.nodeType || node?.type;
+
+const findStartNode = (nodes = []) =>
+  nodes.find((node) => getNodeType(node) === "start");
 
 const getAsset = (assets, assetId) => {
   if (assetId == null || assetId === "") return null;
@@ -47,7 +59,6 @@ const getAsset = (assets, assetId) => {
 
 const resolveAsset = (assets, assetId) => {
   const asset = getAsset(assets, assetId);
-
   return getAssetUrl(asset?.file_path ?? asset?.filePath);
 };
 
@@ -65,11 +76,9 @@ const getNodeBackground = (node, assets) => {
 
 const getChapterStart = (gameData, index) => {
   const chapter = gameData?.chapters?.[index];
-
   if (!chapter) return null;
 
   const startNode = findStartNode(chapter.nodes || []);
-
   if (!startNode) return null;
 
   return {
@@ -108,15 +117,73 @@ const resolveCharacter = (characters, characterId, expressionId) => {
   return getAssetUrl(expression.file_path ?? expression.filePath);
 };
 
+// Validate and restore a save returned by the API.
+const restoreSave = (result) => {
+  const savedGameData = result?.gameData;
+  const save = result?.save;
+
+  if (!Array.isArray(savedGameData?.chapters) || !save?.saveData) {
+    throw new Error("Invalid save file.");
+  }
+
+  const chapterIndex = savedGameData.chapters.findIndex(
+    (chapter) => Number(chapter.chapterId) === Number(save.saveData.chapterId),
+  );
+
+  if (chapterIndex === -1) {
+    throw new Error("Saved chapter not found.");
+  }
+
+  const chapter = savedGameData.chapters[chapterIndex];
+
+  const nodeExists = chapter.nodes?.some(
+    (node) => String(node.id) === String(save.currentNodeId),
+  );
+
+  if (!nodeExists) {
+    throw new Error("Saved node not found.");
+  }
+
+  return {
+    gameData: savedGameData,
+    progress: {
+      chapterIndex,
+      currentNodeId: String(save.currentNodeId),
+      background: save.saveData.background ?? null,
+      history: Array.isArray(save.saveData.history)
+        ? save.saveData.history
+        : [],
+    },
+    save,
+  };
+};
+
+const buildSavePayload = (gameData, progress) => {
+  const chapter = gameData?.chapters?.[progress?.chapterIndex];
+
+  const versionId = gameData?.version?.versionId;
+
+  if (!chapter || !versionId || !progress?.currentNodeId) {
+    throw new Error("Game is not ready to save.");
+  }
+
+  return {
+    versionId,
+    currentNodeId: String(progress.currentNodeId),
+    saveData: {
+      schemaVersion: 1,
+      chapterId: chapter.chapterId,
+      background: progress.background,
+      history: progress.history || [],
+    },
+  };
+};
+
 export default function VisualNovelPlayer() {
   const { gameId } = useParams();
   const [searchParams] = useSearchParams();
-
   const requestedSlot = searchParams.get("slot");
-
-  const autoLoadSlot = /^[1-3]$/.test(requestedSlot || "")
-    ? Number(requestedSlot)
-    : null;
+  const requestedContinue = searchParams.get("continue");
 
   const [gameData, setGameData] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -125,10 +192,48 @@ export default function VisualNovelPlayer() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  // null | "save" | "load"
+  // Existing player modals
   const [modalMode, setModalMode] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Load latest published version
+  // Player Settings
+  const [playerSettings, setPlayerSettings] = useState(loadPlayerSettings);
+
+  const handleSettingsChange = (newSettings) => {
+    const savedSettings = savePlayerSettings(newSettings);
+    setPlayerSettings(savedSettings);
+  };
+
+  // Typewriter
+  const [typewriter, setTypewriter] = useState({
+    key: "",
+    count: 0,
+  });
+
+  // Auto Save
+  const [autoSaveStatus, setAutoSaveStatus] = useState("");
+  const [autoSaveRequest, setAutoSaveRequest] = useState(null);
+  const [autoLoading, setAutoLoading] = useState(false);
+
+  // Used to invalidate pending auto-save operations.
+  const saveGeneration = useRef(0);
+  const saveQueue = useRef(Promise.resolve());
+  const latestProgress = useRef(null);
+
+  // Track the latest committed progress.
+  latestProgress.current = progress;
+
+  const cancelPendingAutoSave = () => {
+    saveGeneration.current += 1;
+    setAutoSaveRequest(null);
+    setAutoSaveStatus("");
+  };
+
+  // ==============================
+  // INITIAL GAME LOAD
+  // ==============================
+
   useEffect(() => {
     let active = true;
 
@@ -140,65 +245,66 @@ export default function VisualNovelPlayer() {
         setGameData(null);
         setProgress(null);
         setModalMode(null);
+        setHistoryOpen(false);
+        setSettingsOpen(false);
+        setAutoSaveRequest(null);
+        setAutoSaveStatus("");
 
-        const params = new URLSearchParams(window.location.search);
+        saveGeneration.current += 1;
 
-        const slotParam = params.get("slot");
-
-        const slotNumber = /^[1-3]$/.test(slotParam || "")
-          ? Number(slotParam)
+        const slotNumber = /^[1-3]$/.test(requestedSlot || "")
+          ? Number(requestedSlot)
           : null;
 
-        if (slotNumber) {
-          // Continue an existing save.
+        // Continue from Auto Save
+        if (requestedContinue === "auto") {
+          try {
+            const result = await loadAutoGame(gameId);
+
+            if (!active) return;
+
+            const restored = restoreSave(result);
+
+            setGameData(restored.gameData);
+            setProgress(restored.progress);
+            setNotice("Continued from Auto Save.");
+            setAutoSaveStatus("Auto Save loaded");
+          } catch (err) {
+            if (!active) return;
+
+            // No Auto Save: open the game normally.
+            // Other errors are displayed instead of silently
+            // ignoring a potentially corrupted save.
+            if (err.response?.status !== 404) {
+              throw err;
+            }
+
+            const result = await getPublishedGameForPlay(gameId);
+
+            if (!active) return;
+
+            setGameData(result);
+            setProgress(getChapterStart(result, 0));
+            setNotice("Auto Save not found. Started a new game.");
+          }
+        }
+
+        // Continue from Manual Save
+        else if (slotNumber) {
           const result = await loadGameFromSlot(gameId, slotNumber);
 
           if (!active) return;
 
-          const savedGameData = result.gameData;
-          const save = result.save;
+          const restored = restoreSave(result);
 
-          if (
-            !savedGameData ||
-            !Array.isArray(savedGameData.chapters) ||
-            !save?.saveData
-          ) {
-            throw new Error("Invalid save file.");
-          }
-
-          const savedChapterIndex = savedGameData.chapters.findIndex(
-            (chapter) =>
-              Number(chapter.chapterId) === Number(save.saveData.chapterId),
-          );
-
-          if (savedChapterIndex === -1) {
-            throw new Error("Saved chapter not found.");
-          }
-
-          const savedChapter = savedGameData.chapters[savedChapterIndex];
-
-          const nodeExists = savedChapter.nodes?.some(
-            (node) => String(node.id) === String(save.currentNodeId),
-          );
-
-          if (!nodeExists) {
-            throw new Error("Saved node not found.");
-          }
-
-          setGameData(savedGameData);
-
-          setProgress({
-            chapterIndex: savedChapterIndex,
-            currentNodeId: String(save.currentNodeId),
-            background: save.saveData.background ?? null,
-            history: Array.isArray(save.saveData.history)
-              ? save.saveData.history
-              : [],
-          });
+          setGameData(restored.gameData);
+          setProgress(restored.progress);
 
           setNotice(`Continued from Slot ${slotNumber}.`);
-        } else {
-          // Start a new game from latest version.
+        }
+
+        // Normal game start
+        else {
           const result = await getPublishedGameForPlay(gameId);
 
           if (!active) return;
@@ -215,7 +321,9 @@ export default function VisualNovelPlayer() {
           );
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
@@ -223,12 +331,19 @@ export default function VisualNovelPlayer() {
 
     return () => {
       active = false;
+      saveGeneration.current += 1;
     };
-  }, [gameId, requestedSlot]);
+  }, [gameId, requestedSlot, requestedContinue]);
+
+  // ==============================
+  // STORY DATA
+  // ==============================
 
   const chapters = gameData?.chapters || [];
-  const assets = gameData?.assets || [];
-  const characters = gameData?.characters || [];
+
+  const assets = useMemo(() => gameData?.assets || [], [gameData]);
+
+  const characters = useMemo(() => gameData?.characters || [], [gameData]);
 
   const chapterIndex = progress?.chapterIndex ?? 0;
   const currentNodeId = progress?.currentNodeId;
@@ -239,7 +354,7 @@ export default function VisualNovelPlayer() {
 
   const nodes = useMemo(() => chapter?.nodes || [], [chapter]);
 
-  const edges = chapter?.edges || [];
+  const edges = useMemo(() => chapter?.edges || [], [chapter]);
 
   const nodeMap = useMemo(
     () => new Map(nodes.map((node) => [String(node.id), node])),
@@ -261,29 +376,50 @@ export default function VisualNovelPlayer() {
     return edge ? nodeMap.get(String(edge.target)) : null;
   };
 
-  // Move to another node within the current chapter
-  const enterNode = (node) => {
+  // ==============================
+  // AUTO SAVE TRIGGER
+  // ==============================
+
+  const requestAutoSave = (nextProgress) => {
+    setAutoSaveRequest({
+      generation: saveGeneration.current,
+      chapterIndex: nextProgress.chapterIndex,
+      nodeId: String(nextProgress.currentNodeId),
+      progress: nextProgress,
+    });
+  };
+
+  // ==============================
+  // STORY NAVIGATION
+  // ==============================
+
+  const enterNode = (node, shouldAutoSave = false) => {
     if (!node || !progress) return;
 
     const nextBackground = getNodeBackground(node, assets);
 
-    setProgress((previous) => ({
-      ...previous,
+    const nextProgress = {
+      ...progress,
       currentNodeId: String(node.id),
-      background: nextBackground || previous.background,
+      background: nextBackground || progress.background,
       history: [
-        ...previous.history,
+        ...progress.history,
         {
-          nodeId: previous.currentNodeId,
-          background: previous.background,
+          nodeId: progress.currentNodeId,
+          background: progress.background,
         },
       ],
-    }));
+    };
 
+    setProgress(nextProgress);
     setNotice("");
+
+    if (shouldAutoSave) {
+      requestAutoSave(nextProgress);
+    }
   };
 
-  const startChapter = (index) => {
+  const startChapter = (index, shouldAutoSave = false) => {
     const nextProgress = getChapterStart(gameData, index);
 
     if (!nextProgress) {
@@ -291,12 +427,25 @@ export default function VisualNovelPlayer() {
       return;
     }
 
+    cancelPendingAutoSave();
     setProgress(nextProgress);
     setNotice("");
+
+    if (shouldAutoSave) {
+      requestAutoSave(nextProgress);
+    }
   };
 
   const handleNext = () => {
     if (!currentNode || nodeType === "choice" || nodeType === "ending") {
+      return;
+    }
+
+    if (nodeType === "dialogue" && visibleCharacters < text.length) {
+      setTypewriter({
+        key: `${chapterIndex}:${currentNodeId}`,
+        count: text.length,
+      });
       return;
     }
 
@@ -317,7 +466,8 @@ export default function VisualNovelPlayer() {
     const nextNode = getNextNode(currentNode.id, handleId);
 
     if (nextNode) {
-      enterNode(nextNode);
+      // Auto Save after choosing a branch.
+      enterNode(nextNode, true);
     }
   };
 
@@ -326,15 +476,15 @@ export default function VisualNovelPlayer() {
       return;
     }
 
-    setProgress((previous) => {
-      const previousEntry = previous.history[previous.history.length - 1];
+    cancelPendingAutoSave();
 
-      return {
-        ...previous,
-        currentNodeId: previousEntry.nodeId,
-        background: previousEntry.background,
-        history: previous.history.slice(0, -1),
-      };
+    const previousEntry = history[history.length - 1];
+
+    setProgress({
+      ...progress,
+      currentNodeId: previousEntry.nodeId,
+      background: previousEntry.background,
+      history: history.slice(0, -1),
     });
 
     setNotice("");
@@ -344,159 +494,159 @@ export default function VisualNovelPlayer() {
     startChapter(0);
   };
 
-  // Save current progress to selected slot
+  // ==============================
+  // MANUAL SAVE
+  // ==============================
+
   const handleSave = async (slotNumber) => {
-    if (!gameData || !progress || !chapter) {
-      throw new Error("Game is not ready to save.");
-    }
-
-    const versionId = gameData.version?.versionId;
-
-    if (!versionId) {
-      throw new Error("Game version not found.");
-    }
-
-    const payload = {
-      versionId,
-      currentNodeId: progress.currentNodeId,
-      saveData: {
-        schemaVersion: 1,
-        chapterId: chapter.chapterId,
-        background: progress.background,
-        history: progress.history,
-      },
-    };
+    const payload = buildSavePayload(gameData, progress);
 
     await saveGameToSlot(gameId, slotNumber, payload);
 
     setNotice(`Game saved successfully to Slot ${slotNumber}.`);
   };
 
-  // Load both the saved version and its progress
+  // ==============================
+  // MANUAL LOAD
+  // ==============================
+
   const handleLoad = async (slotNumber) => {
+    cancelPendingAutoSave();
+
     const result = await loadGameFromSlot(gameId, slotNumber);
 
-    const savedGameData = result.gameData;
-    const save = result.save;
+    const restored = restoreSave(result);
+
+    setGameData(restored.gameData);
+    setProgress(restored.progress);
+
+    setNotice(
+      `Loaded Slot ${slotNumber} — Version ${restored.save.versionNumber}.`,
+    );
+  };
+
+  // ==============================
+  // AUTO LOAD
+  // ==============================
+
+  const handleAutoLoad = async () => {
+    if (autoLoading) return;
+
+    cancelPendingAutoSave();
+    setAutoLoading(true);
+    setAutoSaveStatus("Loading...");
+
+    try {
+      // Wait for any previously queued save to finish.
+      await saveQueue.current;
+
+      const result = await loadAutoGame(gameId);
+      const restored = restoreSave(result);
+
+      setGameData(restored.gameData);
+      setProgress(restored.progress);
+
+      setModalMode(null);
+      setSettingsOpen(false);
+      setHistoryOpen(false);
+
+      setNotice("Continued from Auto Save.");
+      setAutoSaveStatus("Auto Save loaded");
+    } catch (err) {
+      setAutoSaveStatus("");
+
+      setNotice(
+        err.response?.status === 404
+          ? "No Auto Save found yet."
+          : err.response?.data?.message ||
+              err.message ||
+              "Unable to load Auto Save.",
+      );
+    } finally {
+      setAutoLoading(false);
+    }
+  };
+
+  // ==============================
+  // AUTO SAVE EFFECT
+  // ==============================
+
+  useEffect(() => {
+    if (!autoSaveRequest || !gameData || loading || autoLoading) {
+      return;
+    }
+
+    const request = autoSaveRequest;
+
+    if (request.generation !== saveGeneration.current) {
+      return;
+    }
+
+    const current = latestProgress.current;
 
     if (
-      !savedGameData ||
-      !Array.isArray(savedGameData.chapters) ||
-      !save?.saveData
+      !current ||
+      current.chapterIndex !== request.chapterIndex ||
+      String(current.currentNodeId) !== request.nodeId
     ) {
-      throw new Error("Invalid save file.");
+      return;
     }
-
-    const savedChapterIndex = savedGameData.chapters.findIndex(
-      (item) => Number(item.chapterId) === Number(save.saveData.chapterId),
-    );
-
-    if (savedChapterIndex === -1) {
-      throw new Error("Saved chapter was not found.");
-    }
-
-    const savedChapter = savedGameData.chapters[savedChapterIndex];
-
-    const savedNode = savedChapter.nodes?.find(
-      (node) => String(node.id) === String(save.currentNodeId),
-    );
-
-    if (!savedNode) {
-      throw new Error("Saved story node was not found.");
-    }
-
-    const savedHistory = Array.isArray(save.saveData.history)
-      ? save.saveData.history
-      : [];
-
-    // Restore game snapshot and progress together.
-    setGameData(savedGameData);
-
-    setProgress({
-      chapterIndex: savedChapterIndex,
-      currentNodeId: String(save.currentNodeId),
-      background: save.saveData.background ?? null,
-      history: savedHistory,
-    });
-
-    setNotice(`Loaded Slot ${slotNumber} — Version ${save.versionNumber}.`);
-  };
-  useEffect(() => {
-    if (!gameData || !autoLoadSlot) return;
 
     let active = true;
 
-    const restoreProgress = async () => {
+    // Short delay before sending the save.
+    const timer = setTimeout(() => {
+      if (!active || request.generation !== saveGeneration.current) {
+        return;
+      }
+
+      let payload;
+
       try {
-        setLoading(true);
-        setError("");
+        payload = buildSavePayload(gameData, request.progress);
+      } catch (err) {
+        setAutoSaveStatus("Auto Save failed");
+        console.error("Auto Save payload error:", err);
+        return;
+      }
 
-        const result = await loadGameFromSlot(gameId, autoLoadSlot);
+      setAutoSaveStatus("Saving...");
 
-        if (!active) return;
+      // Serialize requests to prevent older saves
+      // from completing after newer saves.
+      const operation = saveQueue.current
+        .catch(() => {})
+        .then(async () => {
+          if (!active || request.generation !== saveGeneration.current) {
+            return;
+          }
 
-        const savedGameData = result.gameData;
-        const save = result.save;
+          await saveAutoGame(gameId, payload);
 
-        if (
-          !savedGameData ||
-          !Array.isArray(savedGameData.chapters) ||
-          !save?.saveData
-        ) {
-          throw new Error("Invalid save file.");
-        }
-
-        const savedChapterIndex = savedGameData.chapters.findIndex(
-          (chapter) =>
-            Number(chapter.chapterId) === Number(save.saveData.chapterId),
-        );
-
-        if (savedChapterIndex < 0) {
-          throw new Error("Saved chapter not found.");
-        }
-
-        const savedNodeExists = savedGameData.chapters[
-          savedChapterIndex
-        ].nodes?.some((node) => String(node.id) === String(save.currentNodeId));
-
-        if (!savedNodeExists) {
-          throw new Error("Saved node not found.");
-        }
-
-        setGameData(savedGameData);
-
-        setProgress({
-          chapterIndex: savedChapterIndex,
-          currentNodeId: String(save.currentNodeId),
-          background: save.saveData.background ?? null,
-          history: Array.isArray(save.saveData.history)
-            ? save.saveData.history
-            : [],
+          if (active && request.generation === saveGeneration.current) {
+            setAutoSaveStatus("Auto Saved");
+          }
         });
 
-        setNotice(`Continued from Slot ${autoLoadSlot}.`);
-      } catch (err) {
-        if (active) {
-          setError(
-            err.response?.data?.message ||
-              err.message ||
-              "Unable to continue saved game.",
-          );
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
+      saveQueue.current = operation.catch((err) => {
+        console.error("Auto Save error:", err);
 
-    restoreProgress();
+        if (active && request.generation === saveGeneration.current) {
+          setAutoSaveStatus("Auto Save failed");
+        }
+      });
+    }, 700);
 
     return () => {
       active = false;
+      clearTimeout(timer);
     };
+  }, [autoSaveRequest, gameData, gameId, loading, autoLoading]);
 
-    // Intentionally run once per game and requested slot.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, autoLoadSlot]);
+  // ==============================
+  // DIALOGUE DATA
+  // ==============================
+
   const options = Array.isArray(data.options) ? data.options : [];
 
   const speakerId = readValue(data.characterId, data.character_id);
@@ -515,9 +665,200 @@ export default function VisualNovelPlayer() {
     character?.characterName,
   );
 
+  const characterImage = resolveCharacter(characters, speakerId, expressionId);
+
+  // Dialogue History follows the current path.
+  const dialogueEntries = useMemo(() => {
+    if (!chapter) return [];
+
+    const visitedIds = [
+      ...history.map((entry) => entry.nodeId),
+      ...(currentNodeId != null ? [currentNodeId] : []),
+    ];
+
+    return visitedIds.flatMap((nodeId) => {
+      const node = nodeMap.get(String(nodeId));
+
+      if (getNodeType(node) !== "dialogue") {
+        return [];
+      }
+
+      const nodeData = node.data || {};
+
+      const content = readValue(
+        nodeData.text,
+        nodeData.dialogue,
+        nodeData.content,
+        "",
+      );
+
+      if (!String(content).trim()) return [];
+
+      const characterId = readValue(
+        nodeData.characterId,
+        nodeData.character_id,
+      );
+
+      const actor = characters.find(
+        (item) =>
+          String(item.character_id ?? item.characterId) === String(characterId),
+      );
+
+      const speaker = readValue(
+        nodeData.speaker,
+        nodeData.characterName,
+        actor?.character_name,
+        actor?.characterName,
+        "Narrator",
+      );
+
+      return [
+        {
+          nodeId: String(nodeId),
+          speaker: String(speaker),
+          text: String(content),
+        },
+      ];
+    });
+  }, [chapter, history, currentNodeId, nodeMap, characters]);
+
   const dialogueText = readValue(data.text, data.dialogue, data.content, "");
 
-  const characterImage = resolveCharacter(characters, speakerId, expressionId);
+  const text = String(dialogueText);
+
+  const dialogueKey = `${chapterIndex}:${currentNodeId}`;
+
+  const typewriterDelay =
+    playerSettings.textSpeed === 0
+      ? 0
+      : Math.max(5, Math.round(100 - playerSettings.textSpeed * 0.9));
+
+  const visibleCharacters =
+    typewriter.key === dialogueKey ? typewriter.count : 0;
+
+  // ==============================
+  // TYPEWRITER EFFECT
+  // ==============================
+
+  useEffect(() => {
+    if (nodeType !== "dialogue") return;
+
+    if (typewriterDelay === 0 || text.length === 0) {
+      setTypewriter({
+        key: dialogueKey,
+        count: text.length,
+      });
+      return;
+    }
+
+    setTypewriter({
+      key: dialogueKey,
+      count: 0,
+    });
+
+    let count = 0;
+
+    const timer = setInterval(() => {
+      count += 1;
+
+      setTypewriter((previous) => {
+        if (previous.key === dialogueKey && previous.count >= text.length) {
+          clearInterval(timer);
+          return previous;
+        }
+
+        return {
+          key: dialogueKey,
+          count,
+        };
+      });
+
+      if (count >= text.length) {
+        clearInterval(timer);
+      }
+    }, typewriterDelay);
+
+    return () => clearInterval(timer);
+  }, [dialogueKey, nodeType, text, typewriterDelay]);
+
+  // ==============================
+  // AUTO PLAY EFFECT
+  // ==============================
+
+  useEffect(() => {
+    if (
+      !playerSettings.autoPlay ||
+      settingsOpen ||
+      historyOpen ||
+      modalMode !== null ||
+      loading ||
+      autoLoading ||
+      nodeType !== "dialogue" ||
+      visibleCharacters < text.length ||
+      !currentNodeId
+    ) {
+      return;
+    }
+
+    const edge = edges.find(
+      (item) =>
+        String(item.source) === String(currentNodeId) &&
+        String(item.sourceHandle || "default") === "default",
+    );
+
+    const nextNode = edge ? nodeMap.get(String(edge.target)) : null;
+
+    if (!nextNode) return;
+
+    const timer = setTimeout(() => {
+      setProgress((previous) => {
+        if (
+          !previous ||
+          String(previous.currentNodeId) !== String(currentNodeId)
+        ) {
+          return previous;
+        }
+
+        const nextBackground = getNodeBackground(nextNode, assets);
+
+        return {
+          ...previous,
+          currentNodeId: String(nextNode.id),
+          background: nextBackground || previous.background,
+          history: [
+            ...previous.history,
+            {
+              nodeId: previous.currentNodeId,
+              background: previous.background,
+            },
+          ],
+        };
+      });
+
+      setNotice("");
+    }, playerSettings.autoPlayDelay);
+
+    return () => clearTimeout(timer);
+  }, [
+    playerSettings.autoPlay,
+    playerSettings.autoPlayDelay,
+    settingsOpen,
+    historyOpen,
+    modalMode,
+    loading,
+    autoLoading,
+    nodeType,
+    currentNodeId,
+    visibleCharacters,
+    text,
+    edges,
+    nodeMap,
+    assets,
+  ]);
+
+  // ==============================
+  // LOADING / ERROR
+  // ==============================
 
   if (loading) {
     return (
@@ -556,6 +897,10 @@ export default function VisualNovelPlayer() {
 
   const isEnding = nodeType === "ending";
 
+  // ==============================
+  // PLAYER UI
+  // ==============================
+
   return (
     <main className="min-h-screen bg-[#090910] text-white">
       {/* Top Navigation */}
@@ -576,7 +921,8 @@ export default function VisualNovelPlayer() {
           <p className="text-xs text-gray-400">{chapter.title}</p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Manual Save */}
           <button
             type="button"
             onClick={() => setModalMode("save")}
@@ -586,6 +932,7 @@ export default function VisualNovelPlayer() {
             Save
           </button>
 
+          {/* Manual Load */}
           <button
             type="button"
             onClick={() => setModalMode("load")}
@@ -595,6 +942,42 @@ export default function VisualNovelPlayer() {
             Load
           </button>
 
+          {/* Auto Load */}
+          <button
+            type="button"
+            onClick={handleAutoLoad}
+            disabled={autoLoading}
+            className="flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {autoLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <FolderOpen size={16} />
+            )}
+            Auto Load
+          </button>
+
+          {/* Dialogue History */}
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+          >
+            <History size={16} />
+            History
+          </button>
+
+          {/* Settings */}
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/50 px-4 py-2 text-sm text-white hover:bg-black/70"
+          >
+            <Settings size={18} />
+            Settings
+          </button>
+
+          {/* Restart */}
           <button
             type="button"
             onClick={handleRestart}
@@ -606,7 +989,7 @@ export default function VisualNovelPlayer() {
         </div>
       </header>
 
-      {/* Save/Load Notice */}
+      {/* Notice */}
       {notice && (
         <div
           role="status"
@@ -647,7 +1030,7 @@ export default function VisualNovelPlayer() {
               )}
 
               <p className="min-h-12 whitespace-pre-wrap text-sm leading-relaxed md:text-lg">
-                {dialogueText}
+                {text.slice(0, visibleCharacters)}
               </p>
 
               <button
@@ -695,7 +1078,7 @@ export default function VisualNovelPlayer() {
               {chapterIndex < chapters.length - 1 ? (
                 <button
                   type="button"
-                  onClick={() => startChapter(chapterIndex + 1)}
+                  onClick={() => startChapter(chapterIndex + 1, true)}
                   className="flex items-center gap-2 rounded-lg bg-purple-600 px-6 py-3 hover:bg-purple-500"
                 >
                   Next Chapter
@@ -753,12 +1136,37 @@ export default function VisualNovelPlayer() {
           Back
         </button>
 
-        <p className="text-xs text-gray-500">
-          Version {gameData.version?.versionNumber || "-"}
-        </p>
+        <div className="flex items-center gap-4">
+          {/* Auto Save Status */}
+          {autoSaveStatus && (
+            <div
+              role="status"
+              className={`flex items-center gap-2 text-xs ${
+                autoSaveStatus.includes("failed")
+                  ? "text-red-400"
+                  : "text-emerald-300"
+              }`}
+            >
+              {autoSaveStatus === "Saving..." ||
+              autoSaveStatus === "Loading..." ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : autoSaveStatus === "Auto Saved" ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <Save size={14} />
+              )}
+
+              {autoSaveStatus}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500">
+            Version {gameData.version?.versionNumber || "-"}
+          </p>
+        </div>
       </div>
 
-      {/* Save & Load Modal */}
+      {/* Manual Save / Load Modal */}
       <SaveLoadModal
         open={modalMode !== null}
         mode={modalMode}
@@ -766,6 +1174,21 @@ export default function VisualNovelPlayer() {
         onClose={() => setModalMode(null)}
         onSave={handleSave}
         onLoad={handleLoad}
+      />
+
+      {/* Dialogue History Modal */}
+      <DialogueHistoryModal
+        open={historyOpen}
+        entries={dialogueEntries}
+        onClose={() => setHistoryOpen(false)}
+      />
+
+      {/* Player Settings Modal */}
+      <PlayerSettingsModal
+        open={settingsOpen}
+        settings={playerSettings}
+        onChange={handleSettingsChange}
+        onClose={() => setSettingsOpen(false)}
       />
     </main>
   );

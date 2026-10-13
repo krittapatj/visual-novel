@@ -1,12 +1,13 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   LogOut,
   UserRound,
-  LayoutDashboard
-} from 'lucide-react';
+  LayoutDashboard,
+  Gamepad2,
+} from "lucide-react";
 
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -14,21 +15,16 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate("/");
   };
 
   const navClass = ({ isActive }) =>
-    isActive
-      ? 'text-purple-400'
-      : 'text-gray-300 hover:text-white';
+    isActive ? "text-purple-400" : "text-gray-300 hover:text-white";
 
   return (
     <header className="border-b border-white/10 bg-[#10101b]">
       <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4">
-        <Link
-          to="/"
-          className="flex items-center gap-2 text-xl font-bold"
-        >
+        <Link to="/" className="flex items-center gap-2 text-xl font-bold">
           <BookOpen className="text-purple-400" />
           Visual Novel
         </Link>
@@ -41,12 +37,25 @@ export default function Navbar() {
           {user ? (
             <>
               <NavLink
+                to="/my-games"
+                className={({ isActive }) =>
+                  `flex items-center gap-2 ${
+                    isActive
+                      ? "text-purple-400"
+                      : "text-gray-300 hover:text-white"
+                  }`
+                }
+              >
+                <Gamepad2 size={17} />
+                My Games
+              </NavLink>
+              <NavLink
                 to="/creator"
                 className={({ isActive }) =>
                   `flex items-center gap-2 ${
                     isActive
-                      ? 'text-purple-400'
-                      : 'text-gray-300 hover:text-white'
+                      ? "text-purple-400"
+                      : "text-gray-300 hover:text-white"
                   }`
                 }
               >
@@ -59,8 +68,8 @@ export default function Navbar() {
                 className={({ isActive }) =>
                   `flex items-center gap-2 ${
                     isActive
-                      ? 'text-purple-400'
-                      : 'text-gray-300 hover:text-white'
+                      ? "text-purple-400"
+                      : "text-gray-300 hover:text-white"
                   }`
                 }
               >

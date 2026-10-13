@@ -1,4 +1,3 @@
-
 const pool = require("../config/db");
 
 const getSaveSlots = async (userId, gameId) => {
@@ -126,10 +125,74 @@ const deleteSaveSlot = async (
   return result.affectedRows > 0;
 };
 
+// ==============================
+// AUTO SAVE
+// ==============================
+
+const getAutoSave = async (userId, gameId) => {
+  const [rows] = await pool.query(
+    `SELECT
+       s.save_id,
+       s.game_id,
+       s.version_id,
+       0 AS slot_number,
+       s.current_node_id,
+       s.save_data,
+       s.saved_at,
+       gv.version_number,
+       gv.version_name,
+       gv.story_snapshot
+     FROM auto_saves s
+     JOIN game_versions gv
+       ON gv.game_id = s.game_id
+      AND gv.version_id = s.version_id
+     WHERE s.user_id = ?
+       AND s.game_id = ?
+     LIMIT 1`,
+    [userId, gameId]
+  );
+
+  return rows[0] || null;
+};
+
+const upsertAutoSave = async ({
+  userId,
+  gameId,
+  versionId,
+  currentNodeId,
+  saveData,
+}) => {
+  await pool.query(
+    `INSERT INTO auto_saves
+       (
+         user_id,
+         game_id,
+         version_id,
+         current_node_id,
+         save_data
+       )
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       version_id = VALUES(version_id),
+       current_node_id = VALUES(current_node_id),
+       save_data = VALUES(save_data),
+       saved_at = CURRENT_TIMESTAMP`,
+    [
+      userId,
+      gameId,
+      versionId,
+      currentNodeId,
+      JSON.stringify(saveData),
+    ]
+  );
+};
+
 module.exports = {
   getSaveSlots,
   getSaveSlot,
   getVersion,
   upsertSaveSlot,
   deleteSaveSlot,
+  getAutoSave,
+  upsertAutoSave,
 };

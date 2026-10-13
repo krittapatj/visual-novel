@@ -20,6 +20,7 @@ import StoryEditor from "./pages/StoryEditor";
 import AssetManager from "./pages/AssetManager";
 import CharacterManager from "./pages/CharacterManager";
 import VisualNovelPlayer from "./pages/VisualNovelPlayer";
+import MyGames from "./pages/MyGames";
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
 
             {/* Protected */}
             <Route element={<ProtectedRoute />}>
+              <Route path="/my-games" element={<MyGames />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/creator" element={<CreatorDashboard />} />
               <Route path="/creator/games/new" element={<CreateGame />} />

@@ -4,6 +4,7 @@ const router = express.Router();
 
 const authMiddleware = require('../middleware/authMiddleware');
 const gameController = require('../controllers/gameController');
+const categoryController = require('../controllers/categoryController');
 
 // Creator routes: ต้อง Login
 router.post(
@@ -46,5 +47,31 @@ router.get(
   '/games/:id',
   gameController.getPublishedGameById
 );
+
+// Public: List all categories
+router.get(
+  '/categories',
+  categoryController.getCategories
+);
+
+// Public: Categories of a published game
+router.get(
+  '/games/:id/categories',
+  categoryController.getGameCategories
+);
+
+// Creator: Update categories of owned game
+router.put(
+  '/creator/games/:id/categories',
+  authMiddleware,
+  categoryController.updateGameCategories
+);
+
+router.get(
+  '/creator/games/:id/categories',
+  authMiddleware,
+  categoryController.getMyGameCategories
+);
+
 
 module.exports = router;

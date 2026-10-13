@@ -8,11 +8,20 @@ import {
   Layers,
   Images,
   Users,
+  Tags,
+  Save,
+  Loader2,
 } from "lucide-react";
 
 import GameForm from "../components/GameForm";
 import { getMyGame, updateGame, deleteGame } from "../api/games";
 import PublishManagement from "../components/creator/PublishManagement";
+
+import {
+  getCategories,
+  updateGameCategories,
+  getMyGameCategories
+} from "../api/categories";
 
 export default function EditGame() {
   const { gameId } = useParams();
@@ -24,6 +33,14 @@ export default function EditGame() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  // Phase 12: Categories
+  const [categories, setCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesSaving, setCategoriesSaving] = useState(false);
+  const [categoriesError, setCategoriesError] = useState("");
+  const [categoriesMessage, setCategoriesMessage] = useState("");
 
   // Load game information
   const loadGame = useCallback(async () => {
@@ -44,6 +61,50 @@ export default function EditGame() {
     loadGame();
   }, [loadGame]);
 
+  // Load available and selected categories
+  useEffect(() => {
+    let active = true;
+
+    const loadCategoryData = async () => {
+      setCategoriesLoading(true);
+      setCategoriesError("");
+
+      try {
+        const [allCategories, gameCategories] = await Promise.all([
+          getCategories(),
+          getMyGameCategories(gameId)
+        ]);
+
+        if (!active) return;
+
+        setCategories(
+          Array.isArray(allCategories) ? allCategories : []
+        );
+
+        setSelectedCategories(
+          Array.isArray(gameCategories)
+            ? gameCategories.map((category) => category.category_id)
+            : []
+        );
+      } catch (err) {
+        if (active) {
+          setCategoriesError(
+            err.response?.data?.message ||
+              "Unable to load game categories."
+          );
+        }
+      } finally {
+        if (active) setCategoriesLoading(false);
+      }
+    };
+
+    loadCategoryData();
+
+    return () => {
+      active = false;
+    };
+  }, [gameId]);
+
   // Update game information
   const handleUpdate = async (data) => {
     setSaving(true);
@@ -60,6 +121,52 @@ export default function EditGame() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Select or deselect category
+  const toggleCategory = (categoryId) => {
+    setCategoriesError("");
+    setCategoriesMessage("");
+
+    setSelectedCategories((previous) => {
+      if (previous.includes(categoryId)) {
+        return previous.filter((id) => id !== categoryId);
+      }
+
+      if (previous.length >= 5) {
+        setCategoriesError("You can select up to 5 categories.");
+        return previous;
+      }
+
+      return [...previous, categoryId];
+    });
+  };
+
+  // Save selected categories
+  const handleSaveCategories = async () => {
+    setCategoriesSaving(true);
+    setCategoriesError("");
+    setCategoriesMessage("");
+
+    try {
+      const result = await updateGameCategories(
+        gameId,
+        selectedCategories
+      );
+
+      setSelectedCategories(
+        result.categories.map((category) => category.category_id)
+      );
+
+      setCategoriesMessage("Categories updated successfully.");
+    } catch (err) {
+      setCategoriesError(
+        err.response?.data?.message ||
+          "Unable to update categories."
+      );
+    } finally {
+      setCategoriesSaving(false);
     }
   };
 
@@ -119,10 +226,7 @@ export default function EditGame() {
       {/* Page Header */}
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">
-            Edit Game
-          </h1>
-
+          <h1 className="text-3xl font-bold">Edit Game</h1>
           <p className="mt-2 text-gray-400">
             Manage your game's information.
           </p>
@@ -160,6 +264,96 @@ export default function EditGame() {
         loading={saving}
         submitLabel="Save Changes"
       />
+
+      {/* Phase 12: Game Categories */}
+      <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
+        <div className="flex items-center gap-3">
+          <Tags className="text-purple-400" size={24} />
+          <h2 className="text-xl font-semibold">
+            Game Categories
+          </h2>
+        </div>
+
+        <p className="mt-3 text-sm text-gray-400">
+          Choose up to 5 categories that best describe your story.
+        </p>
+
+        {categoriesLoading ? (
+          <div className="mt-6 flex items-center gap-2 text-gray-400">
+            <Loader2 size={18} className="animate-spin" />
+            Loading categories...
+          </div>
+        ) : (
+          <>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {categories.map((category) => {
+                const selected = selectedCategories.includes(
+                  category.category_id
+                );
+
+                return (
+                  <button
+                    key={category.category_id}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={categoriesSaving}
+                    onClick={() =>
+                      toggleCategory(category.category_id)
+                    }
+                    className={`rounded-full border px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                      selected
+                        ? "border-purple-500 bg-purple-600 text-white"
+                        : "border-white/10 bg-[#222232] text-gray-300 hover:border-purple-500"
+                    }`}
+                  >
+                    {category.category_name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-4 text-sm text-gray-400">
+              Selected: {selectedCategories.length} / 5
+            </p>
+
+            {categoriesError && (
+              <p role="alert" className="mt-3 text-sm text-red-400">
+                {categoriesError}
+              </p>
+            )}
+
+            {categoriesMessage && (
+              <p
+                role="status"
+                className="mt-3 text-sm text-emerald-400"
+              >
+                {categoriesMessage}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSaveCategories}
+              disabled={
+                categoriesSaving ||
+                categoriesLoading ||
+                categories.length === 0
+              }
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-semibold transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {categoriesSaving ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Save size={18} />
+              )}
+
+              {categoriesSaving
+                ? "Saving Categories..."
+                : "Save Categories"}
+            </button>
+          </>
+        )}
+      </section>
 
       {/* Story Chapters */}
       <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">

@@ -1,4 +1,5 @@
 const gameModel = require('../models/gameModel');
+const categoryModel = require('../models/categoryModel');
 
 const parseGameId = (value) => {
   const id = Number(value);
@@ -255,16 +256,26 @@ const deleteGame = async (req, res) => {
 };
 
 // GET /api/games
+
 const getPublishedGames = async (req, res) => {
   try {
     const games = await gameModel.getPublishedGames();
 
+    const gameIds = games.map((game) => game.game_id);
+
+    const categoriesByGame =
+      await categoryModel.getCategoriesForGames(gameIds);
+
+    const gamesWithCategories = games.map((game) => ({
+      ...game,
+      categories: categoriesByGame[game.game_id] || []
+    }));
+
     return res.json({
       success: true,
-      count: games.length,
-      games
+      count: gamesWithCategories.length,
+      games: gamesWithCategories
     });
-
   } catch (error) {
     console.error('Public games error:', error);
 
@@ -275,7 +286,9 @@ const getPublishedGames = async (req, res) => {
   }
 };
 
+
 // GET /api/games/:id
+
 const getPublishedGameById = async (req, res) => {
   try {
     const gameId = parseGameId(req.params.id);
@@ -296,11 +309,16 @@ const getPublishedGameById = async (req, res) => {
       });
     }
 
+    const categories =
+      await categoryModel.getGameCategories(gameId);
+
     return res.json({
       success: true,
-      game
+      game: {
+        ...game,
+        categories
+      }
     });
-
   } catch (error) {
     console.error('Public game error:', error);
 
@@ -310,6 +328,7 @@ const getPublishedGameById = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   createGame,
