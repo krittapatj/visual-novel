@@ -19,6 +19,7 @@ import ChapterManager from "./pages/ChapterManager";
 import StoryEditor from "./pages/StoryEditor";
 import AssetManager from "./pages/AssetManager";
 import CharacterManager from "./pages/CharacterManager";
+import VisualNovelPlayer from "./pages/VisualNovelPlayer";
 
 export default function App() {
   return (
@@ -62,6 +63,12 @@ export default function App() {
                 element={<CharacterManager />}
               />
             </Route>
+
+            {/* Visual Novel Player - Public */}
+            <Route
+              path="/games/:gameId/play"
+              element={<VisualNovelPlayer />}
+            />
 
             <Route
               path="*"

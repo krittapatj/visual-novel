@@ -9,7 +9,12 @@ const storyRoutes = require('./routes/storyRoutes');
 const path = require('path');
 const assetRoutes = require('./routes/assetRoutes');
 const characterRoutes = require("./routes/characterRoutes");
+const publishingRoutes = require('./routes/publishingRoutes');
+const publicPlayerRoutes = require('./routes/publicPlayerRoutes');
+const saveSlotRoutes = require("./routes/saveSlotRoutes");
 
+
+// Create an Express application
 const app = express();
 
 app.use(cors({
@@ -39,7 +44,12 @@ app.use(
   express.static(path.join(__dirname, '../uploads'))
 );
 app.use("/api/creator", characterRoutes);
+app.use('/api', publishingRoutes);
+app.use('/api', publicPlayerRoutes);
+app.use("/api", saveSlotRoutes);
 
+
+// Catch-all route for undefined endpoints
 app.use((req, res) => {
   res.status(404).json({
     success: false,

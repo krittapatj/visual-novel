@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -11,6 +12,7 @@ import {
 
 import GameForm from "../components/GameForm";
 import { getMyGame, updateGame, deleteGame } from "../api/games";
+import PublishManagement from "../components/creator/PublishManagement";
 
 export default function EditGame() {
   const { gameId } = useParams();
@@ -23,27 +25,26 @@ export default function EditGame() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    let active = true;
-
-    const loadGame = async () => {
-      try {
-        const data = await getMyGame(gameId);
-        if (active) setGame(data);
-      } catch {
-        if (active) setError("Game not found.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    loadGame();
-
-    return () => {
-      active = false;
-    };
+  // Load game information
+  const loadGame = useCallback(async () => {
+    try {
+      const data = await getMyGame(gameId);
+      setGame(data);
+      setError("");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Game not found."
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [gameId]);
 
+  useEffect(() => {
+    loadGame();
+  }, [loadGame]);
+
+  // Update game information
   const handleUpdate = async (data) => {
     setSaving(true);
     setError("");
@@ -54,15 +55,18 @@ export default function EditGame() {
       setGame(updated);
       setMessage("Game updated successfully.");
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to update game.");
+      setError(
+        err.response?.data?.message || "Unable to update game."
+      );
     } finally {
       setSaving(false);
     }
   };
 
+  // Delete unpublished draft game
   const handleDelete = async () => {
     const confirmed = window.confirm(
-      "Delete this draft game permanently? This action cannot be undone.",
+      "Delete this draft game permanently? This action cannot be undone."
     );
 
     if (!confirmed) return;
@@ -74,13 +78,19 @@ export default function EditGame() {
       await deleteGame(gameId);
       navigate("/creator", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to delete game.");
+      setError(
+        err.response?.data?.message || "Unable to delete game."
+      );
       setDeleting(false);
     }
   };
 
   if (loading) {
-    return <p className="p-12 text-center">Loading game...</p>;
+    return (
+      <p className="p-12 text-center text-gray-400">
+        Loading game...
+      </p>
+    );
   }
 
   if (!game) {
@@ -92,7 +102,8 @@ export default function EditGame() {
   }
 
   const canDelete =
-    game.status === "draft" && game.published_version_id == null;
+    game.status === "draft" &&
+    game.published_version_id == null;
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-12">
@@ -108,11 +119,22 @@ export default function EditGame() {
       {/* Page Header */}
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Edit Game</h1>
-          <p className="mt-2 text-gray-400">Manage your game's information.</p>
+          <h1 className="text-3xl font-bold">
+            Edit Game
+          </h1>
+
+          <p className="mt-2 text-gray-400">
+            Manage your game's information.
+          </p>
         </div>
 
-        <span className="rounded-full bg-purple-500/15 px-4 py-2 text-sm capitalize text-purple-300">
+        <span
+          className={`rounded-full px-4 py-2 text-sm capitalize ${
+            game.status === "published"
+              ? "bg-green-500/15 text-green-400"
+              : "bg-purple-500/15 text-purple-300"
+          }`}
+        >
           {game.status}
         </span>
       </div>
@@ -143,7 +165,9 @@ export default function EditGame() {
       <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
         <div className="flex items-center gap-3">
           <Layers className="text-purple-400" />
-          <h2 className="text-xl font-semibold">Story Chapters</h2>
+          <h2 className="text-xl font-semibold">
+            Story Chapters
+          </h2>
         </div>
 
         <p className="mt-3 text-gray-400">
@@ -159,16 +183,18 @@ export default function EditGame() {
         </Link>
       </section>
 
-      {/* Asset Manager - NEW */}
+      {/* Asset Manager */}
       <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
         <div className="flex items-center gap-3">
           <Images className="text-purple-400" />
-          <h2 className="text-xl font-semibold">Asset Manager</h2>
+          <h2 className="text-xl font-semibold">
+            Asset Manager
+          </h2>
         </div>
 
         <p className="mt-3 text-gray-400">
-          Upload and manage backgrounds, characters, covers and thumbnails for
-          your visual novel.
+          Upload and manage backgrounds, characters, covers and
+          thumbnails for your visual novel.
         </p>
 
         <Link
@@ -184,12 +210,14 @@ export default function EditGame() {
       <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
         <div className="flex items-center gap-3">
           <Users className="text-purple-400" />
-          <h2 className="text-xl font-semibold">Character Manager</h2>
+          <h2 className="text-xl font-semibold">
+            Character Manager
+          </h2>
         </div>
 
         <p className="mt-3 text-gray-400">
-          Create characters and manage their expressions, including Normal,
-          Happy, Sad and Angry.
+          Create characters and manage their expressions,
+          including Normal, Happy, Sad and Angry.
         </p>
 
         <Link
@@ -201,10 +229,21 @@ export default function EditGame() {
         </Link>
       </section>
 
+      {/* Publishing Management */}
+      <div className="mt-8">
+        <PublishManagement
+          gameId={gameId}
+          game={game}
+          onPublished={loadGame}
+        />
+      </div>
+
       {/* Danger Zone */}
       {canDelete && (
         <section className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/5 p-6">
-          <h2 className="text-xl font-semibold text-red-300">Danger Zone</h2>
+          <h2 className="text-xl font-semibold text-red-300">
+            Danger Zone
+          </h2>
 
           <p className="mt-2 text-sm text-gray-400">
             Deleting this game permanently removes its data.
