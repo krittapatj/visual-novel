@@ -37,6 +37,8 @@ router.delete(
   gameController.deleteGame
 );
 
+router.put('/creator/games/:id/artwork', authMiddleware, gameController.updateGameArtwork);
+
 // Public routes: ไม่ต้อง Login
 router.get(
   '/games',

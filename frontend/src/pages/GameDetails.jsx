@@ -1,3 +1,4 @@
+import GameArtwork from "../components/GameArtwork";
 import LoadingState from "../components/ui/LoadingState";
 
 import { useEffect, useState } from "react";
@@ -163,17 +164,7 @@ export default function GameDetails() {
       <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,350px)_minmax(0,1fr)] lg:gap-10">
         {/* Cover */}
         <div className="mx-auto aspect-[3/4] w-full max-w-[350px] overflow-hidden rounded-2xl lg:max-w-none border border-white/10 bg-[#191928]">
-          {game.cover_url ? (
-            <img
-              src={game.cover_url}
-              alt={game.title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-purple-300">
-              <BookOpen size={72} />
-            </div>
-          )}
+          <GameArtwork primary={game.cover_url} fallback={game.thumbnail_url} alt={game.title} className="h-full w-full object-cover" iconSize={72} />
         </div>
 
         {/* Details */}

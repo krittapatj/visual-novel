@@ -489,6 +489,13 @@ export default function AssetManager() {
                     </option>
                   ))}
                 </select>
+                {(assetType === 'cover' || assetType === 'thumbnail') && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    {assetType === 'cover'
+                      ? 'Recommended cover: 900 × 1200 px (3:4 portrait)'
+                      : 'Recommended thumbnail: 1280 × 800 px (16:10 landscape)'}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">

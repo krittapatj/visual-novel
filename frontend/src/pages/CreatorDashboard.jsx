@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, BookOpen, Layers } from 'lucide-react';
 
-import { getMyGames } from '../api/games';
+import { getMyGames, getMyGame } from '../api/games';
 import GameCard from '../components/GameCard';
 
 export default function CreatorDashboard() {
@@ -18,7 +18,27 @@ export default function CreatorDashboard() {
     const loadGames = async () => {
       try {
         const data = await getMyGames();
-        if (active) setGames(data);
+        const list = Array.isArray(data) ? data : [];
+
+        // The list endpoint can expose published artwork for published games.
+        // The Creator Dashboard must instead show the latest saved draft artwork.
+        const withDraftArtwork = await Promise.all(
+          list.map(async (game) => {
+            try {
+              const draft = await getMyGame(game.game_id);
+              return {
+                ...game,
+                cover_url: draft.cover_url ?? null,
+                thumbnail_url: draft.thumbnail_url ?? null,
+              };
+            } catch (error) {
+              console.warn(`Could not load draft artwork for game ${game.game_id}`, error);
+              // Do not accidentally show published artwork as a draft preview.
+              return { ...game, cover_url: null, thumbnail_url: null };
+            }
+          })
+        );
+        if (active) setGames(withDraftArtwork);
       } catch {
         if (active) {
           setError('Unable to load your games.');

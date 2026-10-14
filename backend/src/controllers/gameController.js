@@ -330,7 +330,33 @@ const getPublishedGameById = async (req, res) => {
 };
 
 
+
+// PUT /api/creator/games/:id/artwork
+const updateGameArtwork = async (req, res) => {
+  const gameId = parseGameId(req.params.id);
+  if (!gameId) return res.status(400).json({ success: false, message: 'Invalid game ID' });
+  const { cover_asset_id, thumbnail_asset_id } = req.body || {};
+  const valid = (value) => value === null || (Number.isSafeInteger(value) && value > 0);
+  if (!valid(cover_asset_id) || !valid(thumbnail_asset_id) ||
+      cover_asset_id === undefined || thumbnail_asset_id === undefined) {
+    return res.status(400).json({ success: false, message: 'Both asset IDs must be positive integers or null' });
+  }
+  try {
+    const result = await gameModel.updateGameArtwork(
+      gameId, req.user.userId, cover_asset_id, thumbnail_asset_id
+    );
+    if (result.notFound) return res.status(404).json({ success: false, message: 'Game not found' });
+    const game = await gameModel.getGameByOwner(gameId, req.user.userId);
+    return res.json({ success: true, message: 'Game artwork updated', game });
+  } catch (error) {
+    if (error.status === 400) return res.status(400).json({ success: false, message: error.message });
+    console.error('Update game artwork error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to update game artwork' });
+  }
+};
+
 module.exports = {
+  updateGameArtwork,
   createGame,
   getMyGames,
   getMyGameById,

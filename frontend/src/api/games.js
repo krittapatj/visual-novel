@@ -46,3 +46,7 @@ export const deleteGame = async (gameId) => {
   );
   return response.data;
 };
+export const updateGameArtwork = async (gameId, data) => {
+  const response = await api.put(`/creator/games/${gameId}/artwork`, data);
+  return response.data.game;
+};

@@ -33,6 +33,42 @@ const getSlotTime = (slot) => {
   return Number.isFinite(time) ? time : 0;
 };
 
+// Asset paths are served by the backend (/uploads), not the Vite frontend.
+const API_ORIGIN = new URL(import.meta.env.VITE_API_URL || "http://localhost:5000/api", window.location.origin).origin;
+
+function resolveArtworkUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return "";
+  try {
+    const url = new URL(value.trim(), API_ORIGIN);
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+function MyGameArtwork({ game }) {
+  const candidates = [game.thumbnailUrl, game.coverUrl]
+    .map(resolveArtworkUrl)
+    .filter((url, index, all) => url && all.indexOf(url) === index);
+  const [attempt, setAttempt] = useState(0);
+  const src = candidates[attempt];
+  return src ? (
+    <img
+      key={src}
+      src={src}
+      alt={game.title}
+      loading="lazy"
+      className="h-full w-full object-cover"
+      onError={() => setAttempt((current) => current + 1)}
+    />
+  ) : (
+    <div className="flex h-full items-center justify-center text-5xl" role="img" aria-label="Game image unavailable">
+      🎮
+    </div>
+  );
+}
+
 export default function MyGames() {
   const navigate = useNavigate();
 
@@ -174,17 +210,7 @@ export default function MyGames() {
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#171722] transition hover:border-purple-500/50">
         {/* Cover */}
         <div className="h-44 bg-[#252536]">
-          {game.coverUrl ? (
-            <img
-              src={game.coverUrl}
-              alt={game.title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-5xl">
-              🎮
-            </div>
-          )}
+          <MyGameArtwork key={`${game.gameId}-${game.thumbnailUrl || ""}-${game.coverUrl || ""}`} game={game} />
         </div>
 
         <div className="space-y-3 p-5">

@@ -1,5 +1,6 @@
+import GameArtwork from "./GameArtwork";
 import { Link } from "react-router-dom";
-import { BookOpen, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 
 export default function GameCard({ game, creatorMode = false }) {
   const detailPath = creatorMode
@@ -12,17 +13,7 @@ export default function GameCard({ game, creatorMode = false }) {
       className="group block min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#171725] transition hover:-translate-y-1 hover:border-purple-500/40 focus-visible:outline-2 focus-visible:outline-purple-400"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-purple-900/50 to-indigo-950">
-        {game.cover_url ? (
-          <img
-            src={game.cover_url}
-            alt={game.title}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <BookOpen size={52} className="text-purple-300/60" />
-          </div>
-        )}
+        <GameArtwork primary={game.thumbnail_url} fallback={game.cover_url} alt={game.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
 
         {creatorMode && (
           <span

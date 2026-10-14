@@ -139,7 +139,9 @@ const publishGame = async (req, res) => {
       game: {
         gameId: game.game_id,
         title: game.title,
-        description: game.description
+        description: game.description,
+        coverUrl: game.cover_url ?? null,
+        thumbnailUrl: game.thumbnail_url ?? null
       },
       chapters: snapshotChapters,
       assets,

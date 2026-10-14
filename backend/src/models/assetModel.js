@@ -65,13 +65,32 @@ const getAssetById = async (assetId, gameId) => {
 };
 
 const deleteAsset = async (assetId, gameId) => {
-  const [result] = await pool.execute(
-    `DELETE FROM assets
-     WHERE asset_id = ? AND game_id = ?`,
-    [assetId, gameId]
-  );
-
-  return result.affectedRows;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [assets] = await connection.execute(
+      'SELECT file_path FROM assets WHERE asset_id = ? AND game_id = ? FOR UPDATE',
+      [assetId, gameId]
+    );
+    if (!assets.length) {
+      await connection.rollback();
+      return 0;
+    }
+    const [result] = await connection.execute(
+      'DELETE FROM assets WHERE asset_id = ? AND game_id = ?', [assetId, gameId]
+    );
+    await connection.execute(
+      'UPDATE games SET cover_url = CASE WHEN cover_url = ? THEN NULL ELSE cover_url END, thumbnail_url = CASE WHEN thumbnail_url = ? THEN NULL ELSE thumbnail_url END WHERE game_id = ?',
+      [assets[0].file_path, assets[0].file_path, gameId]
+    );
+    await connection.commit();
+    return result.affectedRows;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
 
 module.exports = {

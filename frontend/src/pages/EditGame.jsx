@@ -1,3 +1,5 @@
+import GameArtwork, { imageUrl } from "../components/GameArtwork";
+import { getAssets } from "../api/assets";
 import LoadingState from "../components/ui/LoadingState";
 import { useToast } from "../components/ui/ToastProvider";
 import useConfirm from "../components/ui/useConfirm";
@@ -17,7 +19,7 @@ import {
 } from "lucide-react";
 
 import GameForm from "../components/GameForm";
-import { getMyGame, updateGame, deleteGame } from "../api/games";
+import { getMyGame, updateGame, deleteGame, updateGameArtwork } from "../api/games";
 import PublishManagement from "../components/creator/PublishManagement";
 
 import {
@@ -38,6 +40,46 @@ export default function EditGame() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  const [artworkAssets, setArtworkAssets] = useState([]);
+  const [coverId, setCoverId] = useState(null);
+  const [thumbnailId, setThumbnailId] = useState(null);
+  const [artworkLoading, setArtworkLoading] = useState(true);
+  const [artworkSaving, setArtworkSaving] = useState(false);
+  const [artworkError, setArtworkError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const loadArtwork = async () => {
+      setArtworkLoading(true);
+      try {
+        const [gameData, assets] = await Promise.all([getMyGame(gameId), getAssets(gameId)]);
+        if (!active) return;
+        setArtworkAssets(assets);
+        setCoverId(assets.find(a => a.asset_type === 'cover' && a.file_path === gameData.cover_url)?.asset_id ?? null);
+        setThumbnailId(assets.find(a => a.asset_type === 'thumbnail' && a.file_path === gameData.thumbnail_url)?.asset_id ?? null);
+      } catch (err) {
+        if (active) setArtworkError(err.response?.data?.message || 'Unable to load game images.');
+      } finally { if (active) setArtworkLoading(false); }
+    };
+    loadArtwork();
+    return () => { active = false; };
+  }, [gameId]);
+
+  const handleSaveArtwork = async () => {
+    setArtworkSaving(true);
+    setArtworkError('');
+    try {
+      const updated = await updateGameArtwork(gameId, {
+        cover_asset_id: coverId,
+        thumbnail_asset_id: thumbnailId,
+      });
+      setGame(updated);
+      notify('Game images updated successfully.', 'success');
+    } catch (err) {
+      setArtworkError(err.response?.data?.message || 'Unable to save game images.');
+    } finally { setArtworkSaving(false); }
+  };
 
   // Phase 12: Categories
   const [categories, setCategories] = useState([]);
@@ -265,6 +307,74 @@ export default function EditGame() {
         loading={saving}
         submitLabel="Save Changes"
       />
+
+      {/* Game Cover & Thumbnail */}
+      <section className="mt-8 min-w-0 rounded-2xl border border-white/10 bg-[#171725] p-4 sm:p-6">
+        <div className="flex items-center gap-3">
+          <Images size={24} className="text-purple-400" />
+          <h2 className="text-lg font-semibold sm:text-xl">Game Cover & Thumbnail</h2>
+        </div>
+        <p className="mt-3 text-sm text-gray-400">
+          Choose images uploaded in this game's Asset Manager. The other image is used as a fallback when one is empty.
+        </p>
+        {artworkError && <p role="alert" className="mt-4 text-sm text-red-400">{artworkError}</p>}
+        {artworkLoading ? (
+          <div className="mt-5 flex items-center gap-2 text-gray-400"><Loader2 size={18} className="animate-spin" /> Loading images...</div>
+        ) : (
+          <>
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              {[
+                { label: 'Cover', value: coverId, setValue: setCoverId, type: 'cover' },
+                { label: 'Thumbnail', value: thumbnailId, setValue: setThumbnailId, type: 'thumbnail' },
+              ].map(({ label, value, setValue, type }) => {
+                const choices = artworkAssets.filter(asset => asset.asset_type === type);
+                const selected = choices.find(asset => asset.asset_id === value);
+                return (
+                  <div key={type} className="min-w-0 space-y-3">
+                    <label htmlFor={`game-${type}`} className="block text-sm font-medium">{label}</label>
+                    <select
+                      id={`game-${type}`}
+                      value={value ?? ''}
+                      onChange={event => setValue(event.target.value ? Number(event.target.value) : null)}
+                      disabled={artworkSaving}
+                      className="w-full rounded-xl border border-white/10 bg-[#10101b] px-4 py-3 text-white outline-none focus:border-purple-500"
+                    >
+                      <option value="">No {label.toLowerCase()} (use fallback)</option>
+                      {choices.map(asset => <option key={asset.asset_id} value={asset.asset_id}>{asset.asset_name}</option>)}
+                    </select>
+                    <p className="text-xs text-gray-400">
+                      {type === 'cover'
+                        ? 'Recommended: 900 × 1200 px (3:4 portrait)'
+                        : 'Recommended: 1280 × 800 px (16:10 landscape)'}
+                    </p>
+                    <div className={`${type === 'cover' ? 'aspect-[3/4] max-w-[260px]' : 'aspect-[16/10]'} overflow-hidden rounded-xl border border-white/10 bg-[#10101b]`}>
+                      <GameArtwork
+                        primary={selected?.file_path}
+                        fallback={type === 'cover'
+                          ? artworkAssets.find(asset => asset.asset_id === thumbnailId)?.file_path
+                          : artworkAssets.find(asset => asset.asset_id === coverId)?.file_path}
+                        alt={`${label} preview`}
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                    {choices.length === 0 && (
+                      <p className="text-xs text-amber-300">No {label.toLowerCase()} uploaded yet.</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button type="button" onClick={handleSaveArtwork} disabled={artworkSaving}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500 disabled:opacity-50">
+                {artworkSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {artworkSaving ? 'Saving Images...' : 'Save Game Images'}
+              </button>
+              <Link to={`/creator/games/${gameId}/assets`} className="text-sm text-purple-300 hover:underline">Manage Assets →</Link>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Phase 12: Game Categories */}
       <section className="mt-8 min-w-0 rounded-2xl border border-white/10 bg-[#171725] p-4 sm:p-6">
