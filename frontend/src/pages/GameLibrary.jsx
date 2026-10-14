@@ -1,3 +1,5 @@
+import EmptyState from "../components/ui/EmptyState";
+import LoadingState from "../components/ui/LoadingState";
 import { useEffect, useMemo, useState } from "react";
 import {
   Search,
@@ -183,7 +185,7 @@ export default function GameLibrary() {
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-12">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 sm:py-12">
       {/* Header */}
       <div className="mb-9">
         <h1 className="text-3xl font-bold md:text-4xl">
@@ -196,9 +198,9 @@ export default function GameLibrary() {
       </div>
 
       {/* Search and Sort */}
-      <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="mb-7 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* Search */}
-        <div className="relative w-full max-w-lg">
+        <div className="relative min-w-0 w-full max-w-lg">
           <Search
             size={20}
             className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
@@ -229,7 +231,7 @@ export default function GameLibrary() {
         </div>
 
         {/* Sort */}
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <ArrowDownUp size={18} className="text-purple-400" />
 
           <label
@@ -243,7 +245,7 @@ export default function GameLibrary() {
             id="game-sort"
             value={sortBy}
             onChange={handleSortChange}
-            className="rounded-xl border border-white/10 bg-[#171725] px-4 py-3 text-sm text-white outline-none focus:border-purple-500"
+            className="max-w-full rounded-xl border border-white/10 bg-[#171725] px-4 py-3 text-sm text-white outline-none focus:border-purple-500"
           >
             <option value="newest">Newest First</option>
 
@@ -291,10 +293,7 @@ export default function GameLibrary() {
       </div>
       {/* Loading */}
       {loading ? (
-        <div className="flex items-center justify-center gap-3 py-20 text-gray-400">
-          <Loader2 size={22} className="animate-spin text-purple-400" />
-          Loading games...
-        </div>
+<LoadingState message="Loading games..." />
       ) : error ? (
         /* Error */
         <div
@@ -339,31 +338,12 @@ export default function GameLibrary() {
 
           {/* Empty State */}
           {filteredGames.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-[#171725] py-20 text-center">
-              <BookOpen size={42} className="mx-auto mb-4 text-purple-400" />
-
-              <h2 className="text-xl font-semibold">
-                {search || selectedCategory !== "all"
-                  ? "No matching games"
-                  : "No published games yet"}
-              </h2>
-
-              <p className="mt-2 text-gray-400">
-                {search || selectedCategory !== "all"
-                  ? "Try another search or category."
-                  : "Published stories will appear here."}
-              </p>
-
-              {(search || selectedCategory !== "all") && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="mt-5 rounded-lg bg-purple-600 px-5 py-2 text-sm font-medium text-white hover:bg-purple-500"
-                >
-                  Clear Search
-                </button>
-              )}
-            </div>
+<EmptyState
+              icon={BookOpen}
+              title={search || selectedCategory !== "all" ? "No matching games" : "No published games yet"}
+              description={search || selectedCategory !== "all" ? "Try another search or category." : "Published stories will appear here."}
+              action={(search || selectedCategory !== "all") ? <button type="button" onClick={clearFilters} className="w-full rounded-lg bg-purple-600 px-5 py-2 text-sm font-medium text-white hover:bg-purple-500 sm:w-auto">Clear Search</button> : null}
+            />
           ) : (
             <>
               {/* Game Grid */}

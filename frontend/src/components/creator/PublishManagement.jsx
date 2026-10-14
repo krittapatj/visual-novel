@@ -1,5 +1,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
+import { useToast } from '../ui/ToastProvider';
+import useConfirm from '../ui/useConfirm';
 import {
   Upload,
   History,
@@ -19,6 +21,8 @@ export default function PublishManagement({
   game,
   onPublished
 }) {
+  const { notify } = useToast();
+  const { confirm, dialog } = useConfirm();
   const [versions, setVersions] = useState([]);
   const [versionName, setVersionName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -64,11 +68,7 @@ export default function PublishManagement({
   const handlePublish = async () => {
     if (publishing) return;
 
-    const confirmed = window.confirm(
-      isPublished
-        ? 'Publish a new version of this game?'
-        : 'Publish this game for the first time?'
-    );
+    const confirmed = await confirm({ title: isPublished ? 'Publish new version?' : 'Publish game?', description: isPublished ? 'Publish a new version of this game?' : 'Publish this game for the first time?', confirmLabel: 'Publish' });
 
     if (!confirmed) return;
 
@@ -86,6 +86,7 @@ export default function PublishManagement({
         `${result.message} (Version ${result.version.versionNumber})`
       );
 
+      notify('Game published successfully.', 'success');
       setVersionName('');
 
       await loadVersions();
@@ -318,6 +319,7 @@ export default function PublishManagement({
           </div>
         )}
       </div>
+      {dialog}
     </section>
   );
 }

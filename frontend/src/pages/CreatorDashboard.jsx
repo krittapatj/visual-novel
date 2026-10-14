@@ -1,3 +1,5 @@
+import EmptyState from "../components/ui/EmptyState";
+import LoadingState from "../components/ui/LoadingState";
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, BookOpen, Layers } from 'lucide-react';
@@ -82,28 +84,16 @@ export default function CreatorDashboard() {
       <h2 className="mb-6 text-2xl font-semibold">My Games</h2>
 
       {loading ? (
-        <p className="text-gray-400">Loading your games...</p>
+        <LoadingState message="Loading your games..." />
       ) : error ? (
         <p role="alert" className="text-red-400">{error}</p>
       ) : games.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-[#171725] py-20 text-center">
-          <BookOpen
-            size={44}
-            className="mx-auto mb-4 text-purple-400"
-          />
-          <h3 className="text-xl font-semibold">
-            You haven't created any games yet.
-          </h3>
-          <p className="mt-2 text-gray-400">
-            Start creating your first visual novel.
-          </p>
-          <Link
-            to="/creator/games/new"
-            className="mt-6 inline-block rounded-xl bg-purple-600 px-6 py-3 font-semibold"
-          >
-            Create Game
-          </Link>
-        </div>
+<EmptyState
+          icon={BookOpen}
+          title="You haven't created any games yet."
+          description="Start creating your first visual novel."
+          action={<Link to="/creator/games/new" className="inline-flex w-full justify-center rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white hover:bg-purple-500 sm:w-auto">Create Game</Link>}
+        />
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {games.map((game) => (

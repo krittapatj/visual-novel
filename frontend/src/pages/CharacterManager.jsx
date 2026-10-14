@@ -1,9 +1,18 @@
+import EmptyState from "../components/ui/EmptyState";
+import LoadingState from "../components/ui/LoadingState";
+import { useToast } from "../components/ui/ToastProvider";
+import useConfirm from "../components/ui/useConfirm";
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Plus, Save, Trash2, UserRound,
-  Image as ImageIcon, LoaderCircle
+  ArrowLeft,
+  Plus,
+  Save,
+  Trash2,
+  UserRound,
+  Image as ImageIcon,
+  LoaderCircle,
 } from "lucide-react";
 
 import { getMyGame } from "../api/games";
@@ -14,7 +23,7 @@ import {
   updateCharacter,
   deleteCharacter,
   saveCharacterExpression,
-  deleteCharacterExpression
+  deleteCharacterExpression,
 } from "../api/characters";
 
 const API_ORIGIN = new URL(
@@ -22,13 +31,21 @@ const API_ORIGIN = new URL(
 ).origin;
 
 const EXPRESSION_NAMES = [
-  "Normal", "Happy", "Sad", "Angry",
-  "Surprised", "Shy", "Crying"
+  "Normal",
+  "Happy",
+  "Sad",
+  "Angry",
+  "Surprised",
+  "Shy",
+  "Crying",
 ];
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-[#10101b] " +
-  "px-4 py-3 text-white outline-none focus:border-purple-500";
+  "block w-full min-w-0 rounded-xl border border-white/10 " +
+  "bg-[#10101b] px-4 py-3 text-base text-white " +
+  "outline-none transition focus:border-purple-500 " +
+  "disabled:cursor-not-allowed disabled:opacity-50 " +
+  "sm:text-sm";
 
 function imageUrl(path) {
   if (!path) return "";
@@ -37,6 +54,8 @@ function imageUrl(path) {
 
 export default function CharacterManager() {
   const { gameId } = useParams();
+  const { notify } = useToast();
+  const { confirm, dialog } = useConfirm();
 
   const [game, setGame] = useState(null);
   const [characters, setCharacters] = useState([]);
@@ -68,7 +87,7 @@ export default function CharacterManager() {
       await Promise.all([
         getMyGame(gameId),
         getCharacters(gameId),
-        getAssets(gameId)
+        getAssets(gameId),
       ]);
 
     setGame(gameData);
@@ -84,10 +103,11 @@ export default function CharacterManager() {
     Promise.all([
       getMyGame(gameId),
       getCharacters(gameId),
-      getAssets(gameId)
+      getAssets(gameId),
     ])
       .then(([gameData, characterData, assetData]) => {
         if (!active) return;
+
         setGame(gameData);
         setCharacters(characterData);
         setAssets(assetData);
@@ -96,7 +116,7 @@ export default function CharacterManager() {
         if (active) {
           setError(
             err.response?.data?.message ||
-            "Unable to load Character Manager."
+              "Unable to load Character Manager."
           );
         }
       })
@@ -137,25 +157,27 @@ export default function CharacterManager() {
       if (selectedId) {
         await updateCharacter(gameId, selectedId, {
           character_name: name.trim(),
-          description
+          description,
         });
 
         await loadData();
         setMessage("Character updated successfully.");
+        notify("Character updated successfully.", "success");
       } else {
         const created = await createCharacter(gameId, {
           character_name: name.trim(),
-          description
+          description,
         });
 
         await loadData();
         setSelectedId(created.character_id);
         setMessage("Character created successfully.");
+        notify("Character created successfully.", "success");
       }
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        "Unable to save character."
+          "Unable to save character."
       );
     } finally {
       setSaving(false);
@@ -165,7 +187,9 @@ export default function CharacterManager() {
   const handleDeleteCharacter = async () => {
     if (!selectedId) return;
 
-    if (!window.confirm("Delete this character and all expressions?")) {
+    if (
+      !(await confirm({ title: "Delete character?", description: "Delete this character and all expressions? This cannot be undone.", confirmLabel: "Delete character", danger: true }))
+    ) {
       return;
     }
 
@@ -177,10 +201,11 @@ export default function CharacterManager() {
       await loadData();
       resetForm();
       setMessage("Character deleted successfully.");
+      notify("Character deleted successfully.", "success");
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        "Unable to delete character."
+          "Unable to delete character."
       );
     } finally {
       setSaving(false);
@@ -203,15 +228,16 @@ export default function CharacterManager() {
       await saveCharacterExpression(gameId, selectedId, {
         asset_id: Number(assetId),
         expression_name: expressionName.trim(),
-        is_default: isDefault
+        is_default: isDefault,
       });
 
       await loadData();
       setMessage("Expression saved successfully.");
+      notify("Expression saved successfully.", "success");
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        "Unable to save expression."
+          "Unable to save expression."
       );
     } finally {
       setSaving(false);
@@ -219,7 +245,7 @@ export default function CharacterManager() {
   };
 
   const handleDeleteExpression = async (expressionId) => {
-    if (!window.confirm("Delete this expression?")) return;
+    if (!(await confirm({ title: "Delete expression?", description: "Delete this expression? This cannot be undone.", confirmLabel: "Delete expression", danger: true }))) return;
 
     setSaving(true);
     setError("");
@@ -234,10 +260,11 @@ export default function CharacterManager() {
 
       await loadData();
       setMessage("Expression deleted successfully.");
+      notify("Expression deleted successfully.", "success");
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        "Unable to delete expression."
+          "Unable to delete expression."
       );
     } finally {
       setSaving(false);
@@ -245,69 +272,130 @@ export default function CharacterManager() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center gap-2 text-gray-400">
-        <LoaderCircle className="animate-spin" />
-        Loading characters...
-      </div>
-    );
+    return <LoadingState message="Loading characters..." fullPage />;
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-10 text-white">
+    <main
+      className={
+        "mx-auto w-full max-w-7xl min-w-0 " +
+        "px-4 py-6 text-white sm:px-6 sm:py-8 lg:px-8 lg:py-10"
+      }
+    >
+      {/* Back Navigation */}
       <Link
         to={`/creator/games/${gameId}/edit`}
-        className="mb-7 inline-flex items-center gap-2 text-gray-400 hover:text-white"
+        className={
+          "mb-6 inline-flex items-center gap-2 " +
+          "text-sm text-gray-400 transition hover:text-white " +
+          "sm:mb-7 sm:text-base"
+        }
       >
-        <ArrowLeft size={18} />
+        <ArrowLeft size={18} className="shrink-0" />
         Back to Edit Game
       </Link>
 
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">
+      {/* Page Header */}
+      <div
+        className={
+          "mb-6 flex min-w-0 flex-col gap-4 " +
+          "sm:mb-8 sm:flex-row sm:items-center " +
+          "sm:justify-between"
+        }
+      >
+        <div className="min-w-0 flex-1">
+          <h1
+            className={
+              "break-words text-2xl font-bold " +
+              "sm:text-3xl"
+            }
+          >
             Character Manager
           </h1>
-          <p className="mt-2 text-gray-400">
+
+          <p
+            className={
+              "mt-2 break-words text-sm text-gray-400 " +
+              "sm:text-base"
+            }
+          >
             {game?.title || "Visual Novel"} — Characters & Expressions
           </p>
         </div>
 
         <button
+          type="button"
           onClick={resetForm}
-          className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 hover:bg-purple-500"
+          disabled={saving}
+          className={
+            "inline-flex w-full shrink-0 items-center " +
+            "justify-center gap-2 rounded-xl bg-purple-600 " +
+            "px-5 py-3 font-medium transition " +
+            "hover:bg-purple-500 disabled:opacity-50 " +
+            "sm:w-auto"
+          }
         >
           <Plus size={18} />
           New Character
         </button>
       </div>
 
+      {/* Error Message */}
       {error && (
-        <p role="alert" className="mb-5 rounded-xl bg-red-500/10 p-4 text-red-300">
+        <p
+          role="alert"
+          className={
+            "mb-5 break-words rounded-xl border " +
+            "border-red-500/20 bg-red-500/10 " +
+            "p-4 text-sm text-red-300 sm:text-base"
+          }
+        >
           {error}
         </p>
       )}
 
+      {/* Success Message */}
       {message && (
-        <p role="status" className="mb-5 rounded-xl bg-emerald-500/10 p-4 text-emerald-300">
+        <p
+          role="status"
+          className={
+            "mb-5 break-words rounded-xl border " +
+            "border-emerald-500/20 bg-emerald-500/10 " +
+            "p-4 text-sm text-emerald-300 sm:text-base"
+          }
+        >
           {message}
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      {/* Main Responsive Layout */}
+      <div
+        className={
+          "grid min-w-0 grid-cols-1 gap-5 " +
+          "lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6"
+        }
+      >
         {/* Character List */}
-        <aside className="rounded-2xl border border-white/10 bg-[#171725] p-4">
+        <aside
+          className={
+            "min-w-0 rounded-2xl border border-white/10 " +
+            "bg-[#171725] p-4 sm:p-5 lg:p-4"
+          }
+        >
           <h2 className="mb-4 text-lg font-semibold">
             Characters ({characters.length})
           </h2>
 
           {characters.length === 0 && (
-            <p className="text-sm text-gray-400">
-              No characters yet.
-            </p>
+            <EmptyState title="No characters yet" className="px-3 py-8" />
           )}
 
-          <div className="space-y-2">
+          <div
+            className={
+              "grid min-w-0 grid-cols-1 gap-2 " +
+              "sm:grid-cols-2 lg:grid-cols-1"
+            }
+          >
             {characters.map((character) => {
               const defaultExpression =
                 character.expressions?.find(
@@ -317,28 +405,50 @@ export default function CharacterManager() {
               return (
                 <button
                   key={character.character_id}
+                  type="button"
                   onClick={() => selectCharacter(character)}
-                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${
+                  aria-pressed={
                     selectedId === character.character_id
-                      ? "border-purple-500 bg-purple-500/10"
-                      : "border-white/10 hover:bg-white/5"
-                  }`}
+                  }
+                  className={`flex min-w-0 w-full items-center gap-3
+                    rounded-xl border p-3 text-left transition
+                    ${
+                      selectedId === character.character_id
+                        ? "border-purple-500 bg-purple-500/10"
+                        : "border-white/10 hover:bg-white/5"
+                    }`}
                 >
                   {defaultExpression ? (
                     <img
-                      src={imageUrl(defaultExpression.file_path)}
+                      src={imageUrl(
+                        defaultExpression.file_path
+                      )}
                       alt={character.character_name}
-                      className="h-14 w-12 rounded-lg bg-black/30 object-contain"
+                      className={
+                        "h-14 w-12 shrink-0 rounded-lg " +
+                        "bg-black/30 object-contain"
+                      }
                     />
                   ) : (
-                    <UserRound className="text-gray-500" />
+                    <div
+                      className={
+                        "flex h-14 w-12 shrink-0 items-center " +
+                        "justify-center rounded-lg bg-black/20"
+                      }
+                    >
+                      <UserRound
+                        size={24}
+                        className="text-gray-500"
+                      />
+                    </div>
                   )}
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">
                       {character.character_name}
                     </p>
-                    <p className="text-xs text-gray-400">
+
+                    <p className="mt-1 text-xs text-gray-400">
                       {character.expressions?.length || 0} expressions
                     </p>
                   </div>
@@ -348,51 +458,108 @@ export default function CharacterManager() {
           </div>
         </aside>
 
-        <div className="space-y-6">
-          {/* Character Details */}
-          <section className="rounded-2xl border border-white/10 bg-[#171725] p-6">
-            <h2 className="mb-5 text-xl font-semibold">
-              {selectedId ? "Edit Character" : "Create Character"}
+        {/* Character Details & Expressions */}
+        <div className="min-w-0 space-y-5 sm:space-y-6">
+          {/* Character Form */}
+          <section
+            className={
+              "min-w-0 rounded-2xl border border-white/10 " +
+              "bg-[#171725] p-4 sm:p-6"
+            }
+          >
+            <h2
+              className={
+                "mb-5 text-lg font-semibold sm:text-xl"
+              }
+            >
+              {selectedId
+                ? "Edit Character"
+                : "Create Character"}
             </h2>
 
-            <form onSubmit={handleSaveCharacter} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm text-gray-300">
+            <form
+              onSubmit={handleSaveCharacter}
+              className="space-y-4"
+            >
+              <div className="min-w-0">
+                <label
+                  htmlFor="character-name"
+                  className={
+                    "mb-2 block text-sm text-gray-300"
+                  }
+                >
                   Character Name
                 </label>
+
                 <input
+                  id="character-name"
+                  type="text"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) =>
+                    setName(event.target.value)
+                  }
                   maxLength={100}
                   required
+                  disabled={saving}
                   placeholder="e.g. Alice"
                   className={inputClass}
                 />
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm text-gray-300">
+              <div className="min-w-0">
+                <label
+                  htmlFor="character-description"
+                  className={
+                    "mb-2 block text-sm text-gray-300"
+                  }
+                >
                   Description
                 </label>
+
                 <textarea
+                  id="character-description"
                   value={description}
                   onChange={(event) =>
                     setDescription(event.target.value)
                   }
                   rows={3}
+                  disabled={saving}
                   placeholder="Character background or personality"
                   className={inputClass}
                 />
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              {/* Form Actions */}
+              <div
+                className={
+                  "flex flex-col gap-3 pt-1 " +
+                  "sm:flex-row sm:flex-wrap"
+                }
+              >
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 disabled:opacity-50"
+                  className={
+                    "inline-flex w-full items-center " +
+                    "justify-center gap-2 rounded-xl " +
+                    "bg-purple-600 px-5 py-3 font-medium " +
+                    "transition hover:bg-purple-500 " +
+                    "disabled:cursor-not-allowed " +
+                    "disabled:opacity-50 sm:w-auto"
+                  }
                 >
-                  <Save size={17} />
-                  {selectedId ? "Save Changes" : "Create Character"}
+                  {saving ? (
+                    <LoaderCircle
+                      size={17}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <Save size={17} />
+                  )}
+
+                  {selectedId
+                    ? "Save Changes"
+                    : "Create Character"}
                 </button>
 
                 {selectedId && (
@@ -400,7 +567,15 @@ export default function CharacterManager() {
                     type="button"
                     onClick={handleDeleteCharacter}
                     disabled={saving}
-                    className="flex items-center gap-2 rounded-xl border border-red-500/30 px-5 py-3 text-red-400 disabled:opacity-50"
+                    className={
+                      "inline-flex w-full items-center " +
+                      "justify-center gap-2 rounded-xl " +
+                      "border border-red-500/30 px-5 py-3 " +
+                      "text-red-400 transition " +
+                      "hover:bg-red-500/10 " +
+                      "disabled:cursor-not-allowed " +
+                      "disabled:opacity-50 sm:w-auto"
+                    }
                   >
                     <Trash2 size={17} />
                     Delete
@@ -410,100 +585,182 @@ export default function CharacterManager() {
             </form>
           </section>
 
-          {/* Expressions */}
+          {/* Character Expressions */}
           {selectedId && (
-            <section className="rounded-2xl border border-white/10 bg-[#171725] p-6">
-              <h2 className="text-xl font-semibold">
+            <section
+              className={
+                "min-w-0 rounded-2xl border border-white/10 " +
+                "bg-[#171725] p-4 sm:p-6"
+              }
+            >
+              <h2
+                className={
+                  "break-words text-lg font-semibold " +
+                  "sm:text-xl"
+                }
+              >
                 Character Expressions
               </h2>
-              <p className="mt-2 text-sm text-gray-400">
+
+              <p
+                className={
+                  "mt-2 text-sm text-gray-400"
+                }
+              >
                 Assign images from your Asset Library.
               </p>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-                {(selected?.expressions || []).map((expression) => (
-                  <div
-                    key={expression.expression_id}
-                    className="overflow-hidden rounded-xl border border-white/10 bg-[#10101b]"
-                  >
-                    <div className="flex h-40 items-center justify-center">
-                      <img
-                        src={imageUrl(expression.file_path)}
-                        alt={expression.expression_name}
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 p-3">
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {expression.expression_name}
-                        </p>
-                        {Boolean(expression.is_default) && (
-                          <p className="text-xs text-purple-300">
-                            Default
-                          </p>
-                        )}
+              {/* Expression Grid */}
+              <div
+                className={
+                  "mt-5 grid min-w-0 grid-cols-1 gap-3 " +
+                  "sm:grid-cols-2 xl:grid-cols-3"
+                }
+              >
+                {(selected?.expressions || []).map(
+                  (expression) => (
+                    <div
+                      key={expression.expression_id}
+                      className={
+                        "min-w-0 overflow-hidden rounded-xl " +
+                        "border border-white/10 bg-[#10101b]"
+                      }
+                    >
+                      <div
+                        className={
+                          "flex h-44 items-center " +
+                          "justify-center bg-black/20 p-3 " +
+                          "sm:h-40"
+                        }
+                      >
+                        <img
+                          src={imageUrl(
+                            expression.file_path
+                          )}
+                          alt={expression.expression_name}
+                          className={
+                            "h-full max-w-full object-contain"
+                          }
+                        />
                       </div>
 
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() =>
-                          handleDeleteExpression(
-                            expression.expression_id
-                          )
+                      <div
+                        className={
+                          "flex min-w-0 items-center " +
+                          "justify-between gap-3 p-3"
                         }
-                        aria-label={`Delete ${expression.expression_name}`}
-                        className="text-red-400 disabled:opacity-50"
                       >
-                        <Trash2 size={17} />
-                      </button>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={
+                              "break-words text-sm font-semibold"
+                            }
+                          >
+                            {expression.expression_name}
+                          </p>
+
+                          {Boolean(
+                            expression.is_default
+                          ) && (
+                            <p
+                              className={
+                                "mt-1 text-xs text-purple-300"
+                              }
+                            >
+                              Default
+                            </p>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() =>
+                            handleDeleteExpression(
+                              expression.expression_id
+                            )
+                          }
+                          aria-label={`Delete ${expression.expression_name}`}
+                          className={
+                            "flex h-10 w-10 shrink-0 " +
+                            "items-center justify-center " +
+                            "rounded-lg text-red-400 " +
+                            "transition hover:bg-red-500/10 " +
+                            "disabled:opacity-50"
+                          }
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
 
+              {/* Add / Replace Expression */}
               <form
                 onSubmit={handleSaveExpression}
-                className="mt-6 space-y-4 border-t border-white/10 pt-6"
+                className={
+                  "mt-6 min-w-0 space-y-4 " +
+                  "border-t border-white/10 pt-6"
+                }
               >
                 <h3 className="font-semibold">
                   Add / Replace Expression
                 </h3>
 
-                <div>
-                  <label className="mb-2 block text-sm">
+                <div className="min-w-0">
+                  <label
+                    htmlFor="expression-name"
+                    className="mb-2 block text-sm"
+                  >
                     Expression
                   </label>
+
                   <select
+                    id="expression-name"
                     value={expressionName}
                     onChange={(event) =>
                       setExpressionName(event.target.value)
                     }
+                    disabled={saving}
                     className={inputClass}
                   >
-                    {EXPRESSION_NAMES.map((expression) => (
-                      <option key={expression} value={expression}>
-                        {expression}
-                      </option>
-                    ))}
+                    {EXPRESSION_NAMES.map(
+                      (expression) => (
+                        <option
+                          key={expression}
+                          value={expression}
+                        >
+                          {expression}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-sm">
+                <div className="min-w-0">
+                  <label
+                    htmlFor="expression-asset"
+                    className="mb-2 block text-sm"
+                  >
                     Character Image
                   </label>
+
                   <select
+                    id="expression-asset"
                     value={assetId}
                     onChange={(event) =>
                       setAssetId(event.target.value)
                     }
                     required
+                    disabled={saving}
                     className={inputClass}
                   >
-                    <option value="">Select an image</option>
+                    <option value="">
+                      Select an image
+                    </option>
+
                     {characterAssets.map((asset) => (
                       <option
                         key={asset.asset_id}
@@ -515,52 +772,110 @@ export default function CharacterManager() {
                   </select>
                 </div>
 
+                {/* Selected Image Preview */}
                 {assetId && (
-                  <div className="flex h-44 items-center justify-center rounded-xl bg-[#10101b] p-3">
+                  <div
+                    className={
+                      "flex h-44 w-full min-w-0 " +
+                      "items-center justify-center " +
+                      "overflow-hidden rounded-xl " +
+                      "bg-[#10101b] p-3 sm:h-52"
+                    }
+                  >
                     <img
                       src={imageUrl(
                         characterAssets.find(
                           (asset) =>
-                            String(asset.asset_id) === assetId
+                            String(asset.asset_id) ===
+                            assetId
                         )?.file_path
                       )}
                       alt="Selected expression"
-                      className="h-full max-w-full object-contain"
+                      className={
+                        "h-full max-w-full object-contain"
+                      }
                     />
                   </div>
                 )}
 
-                <label className="flex items-center gap-3 text-sm">
+                {/* Default Expression */}
+                <label
+                  className={
+                    "flex min-w-0 items-center gap-3 " +
+                    "py-2 text-sm"
+                  }
+                >
                   <input
                     type="checkbox"
                     checked={isDefault}
                     onChange={(event) =>
-                      setIsDefault(event.target.checked)
+                      setIsDefault(
+                        event.target.checked
+                      )
                     }
-                    className="accent-purple-600"
+                    disabled={saving}
+                    className={
+                      "h-4 w-4 shrink-0 accent-purple-600"
+                    }
                   />
-                  Set as default expression
+
+                  <span className="break-words">
+                    Set as default expression
+                  </span>
                 </label>
 
+                {/* No Character Assets */}
                 {characterAssets.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-white/15 p-4 text-sm text-gray-400">
-                    <ImageIcon className="mb-2" size={22} />
-                    No character images found.
-                    <Link
-                      to={`/creator/games/${gameId}/assets`}
-                      className="ml-1 text-purple-400 underline"
-                    >
-                      Upload images
-                    </Link>
+                  <div
+                    className={
+                      "min-w-0 rounded-xl border " +
+                      "border-dashed border-white/15 " +
+                      "p-4 text-sm text-gray-400"
+                    }
+                  >
+                    <ImageIcon
+                      className="mb-2"
+                      size={22}
+                    />
+
+                    <p className="break-words">
+                      No character images found.
+                      <Link
+                        to={`/creator/games/${gameId}/assets`}
+                        className={
+                          "ml-1 text-purple-400 underline " +
+                          "hover:text-purple-300"
+                        }
+                      >
+                        Upload images
+                      </Link>
+                    </p>
                   </div>
                 )}
 
+                {/* Save Expression */}
                 <button
                   type="submit"
                   disabled={saving || !assetId}
-                  className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 disabled:opacity-50"
+                  className={
+                    "inline-flex w-full items-center " +
+                    "justify-center gap-2 rounded-xl " +
+                    "bg-purple-600 px-5 py-3 " +
+                    "font-medium transition " +
+                    "hover:bg-purple-500 " +
+                    "disabled:cursor-not-allowed " +
+                    "disabled:opacity-50 sm:w-auto"
+                  }
                 >
-                  <Plus size={18} />
+                  {saving ? (
+                    <LoaderCircle
+                      size={18}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <Plus size={18} />
+                  )}
+
                   Save Expression
                 </button>
               </form>
@@ -568,6 +883,7 @@ export default function CharacterManager() {
           )}
         </div>
       </div>
+      {dialog}
     </main>
   );
 }

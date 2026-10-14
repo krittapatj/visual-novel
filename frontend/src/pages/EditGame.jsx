@@ -1,3 +1,6 @@
+import LoadingState from "../components/ui/LoadingState";
+import { useToast } from "../components/ui/ToastProvider";
+import useConfirm from "../components/ui/useConfirm";
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -26,6 +29,8 @@ import {
 export default function EditGame() {
   const { gameId } = useParams();
   const navigate = useNavigate();
+  const { notify } = useToast();
+  const { confirm, dialog } = useConfirm();
 
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -115,6 +120,7 @@ export default function EditGame() {
       const updated = await updateGame(gameId, data);
       setGame(updated);
       setMessage("Game updated successfully.");
+      notify("Game updated successfully.", "success");
     } catch (err) {
       setError(
         err.response?.data?.message || "Unable to update game."
@@ -160,6 +166,7 @@ export default function EditGame() {
       );
 
       setCategoriesMessage("Categories updated successfully.");
+      notify("Categories updated successfully.", "success");
     } catch (err) {
       setCategoriesError(
         err.response?.data?.message ||
@@ -172,9 +179,7 @@ export default function EditGame() {
 
   // Delete unpublished draft game
   const handleDelete = async () => {
-    const confirmed = window.confirm(
-      "Delete this draft game permanently? This action cannot be undone."
-    );
+    const confirmed = await confirm({ title: "Delete draft game?", description: "Delete this draft game permanently? This action cannot be undone.", confirmLabel: "Delete game", danger: true });
 
     if (!confirmed) return;
 
@@ -193,11 +198,7 @@ export default function EditGame() {
   };
 
   if (loading) {
-    return (
-      <p className="p-12 text-center text-gray-400">
-        Loading game...
-      </p>
-    );
+    return <LoadingState message="Loading game..." fullPage />;
   }
 
   if (!game) {
@@ -213,27 +214,27 @@ export default function EditGame() {
     game.published_version_id == null;
 
   return (
-    <main className="mx-auto max-w-3xl px-5 py-12">
+    <main className="mx-auto w-full min-w-0 max-w-3xl px-4 py-8 sm:px-5 sm:py-12">
       {/* Back to Dashboard */}
       <Link
         to="/creator"
-        className="mb-8 inline-flex items-center gap-2 text-gray-400 hover:text-white"
+        className="mb-7 inline-flex min-h-10 items-center gap-2 text-sm text-gray-400 sm:mb-8 hover:text-white"
       >
         <ArrowLeft size={18} />
         Back to Dashboard
       </Link>
 
       {/* Page Header */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Edit Game</h1>
+      <div className="mb-8 flex min-w-0 flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold sm:text-3xl">Edit Game</h1>
           <p className="mt-2 text-gray-400">
             Manage your game's information.
           </p>
         </div>
 
         <span
-          className={`rounded-full px-4 py-2 text-sm capitalize ${
+          className={`max-w-full break-words rounded-full px-4 py-2 text-sm capitalize ${
             game.status === "published"
               ? "bg-green-500/15 text-green-400"
               : "bg-purple-500/15 text-purple-300"
@@ -245,14 +246,14 @@ export default function EditGame() {
 
       {/* Error Message */}
       {error && (
-        <p role="alert" className="mb-5 text-red-400">
+        <p role="alert" className="mb-5 break-words rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           {error}
         </p>
       )}
 
       {/* Success Message */}
       {message && (
-        <p role="status" className="mb-5 text-emerald-400">
+        <p role="status" className="mb-5 break-words rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">
           {message}
         </p>
       )}
@@ -266,10 +267,10 @@ export default function EditGame() {
       />
 
       {/* Phase 12: Game Categories */}
-      <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
-        <div className="flex items-center gap-3">
+      <section className="mt-8 min-w-0 rounded-2xl border border-white/10 bg-[#171725] p-4 sm:p-6">
+        <div className="flex min-w-0 items-start gap-3">
           <Tags className="text-purple-400" size={24} />
-          <h2 className="text-xl font-semibold">
+          <h2 className="min-w-0 break-words text-lg font-semibold sm:text-xl">
             Game Categories
           </h2>
         </div>
@@ -285,7 +286,7 @@ export default function EditGame() {
           </div>
         ) : (
           <>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 flex min-w-0 flex-wrap gap-2 sm:gap-3">
               {categories.map((category) => {
                 const selected = selectedCategories.includes(
                   category.category_id
@@ -300,7 +301,7 @@ export default function EditGame() {
                     onClick={() =>
                       toggleCategory(category.category_id)
                     }
-                    className={`rounded-full border px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                    className={`max-w-full break-words rounded-full border px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
                       selected
                         ? "border-purple-500 bg-purple-600 text-white"
                         : "border-white/10 bg-[#222232] text-gray-300 hover:border-purple-500"
@@ -317,7 +318,7 @@ export default function EditGame() {
             </p>
 
             {categoriesError && (
-              <p role="alert" className="mt-3 text-sm text-red-400">
+              <p role="alert" className="mt-3 break-words text-sm text-red-400">
                 {categoriesError}
               </p>
             )}
@@ -325,7 +326,7 @@ export default function EditGame() {
             {categoriesMessage && (
               <p
                 role="status"
-                className="mt-3 text-sm text-emerald-400"
+                className="mt-3 break-words text-sm text-emerald-400"
               >
                 {categoriesMessage}
               </p>
@@ -339,7 +340,7 @@ export default function EditGame() {
                 categoriesLoading ||
                 categories.length === 0
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-semibold transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl sm:w-auto bg-purple-600 px-5 py-3 font-semibold transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {categoriesSaving ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -356,10 +357,10 @@ export default function EditGame() {
       </section>
 
       {/* Story Chapters */}
-      <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
-        <div className="flex items-center gap-3">
+      <section className="mt-8 min-w-0 rounded-2xl border border-white/10 bg-[#171725] p-4 sm:p-6">
+        <div className="flex min-w-0 items-start gap-3">
           <Layers className="text-purple-400" />
-          <h2 className="text-xl font-semibold">
+          <h2 className="min-w-0 break-words text-lg font-semibold sm:text-xl">
             Story Chapters
           </h2>
         </div>
@@ -370,7 +371,7 @@ export default function EditGame() {
 
         <Link
           to={`/creator/games/${gameId}/chapters`}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl text-center sm:w-auto bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500"
         >
           Manage Chapters
           <ArrowRight size={18} />
@@ -378,10 +379,10 @@ export default function EditGame() {
       </section>
 
       {/* Asset Manager */}
-      <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
-        <div className="flex items-center gap-3">
+      <section className="mt-8 min-w-0 rounded-2xl border border-white/10 bg-[#171725] p-4 sm:p-6">
+        <div className="flex min-w-0 items-start gap-3">
           <Images className="text-purple-400" />
-          <h2 className="text-xl font-semibold">
+          <h2 className="min-w-0 break-words text-lg font-semibold sm:text-xl">
             Asset Manager
           </h2>
         </div>
@@ -393,7 +394,7 @@ export default function EditGame() {
 
         <Link
           to={`/creator/games/${gameId}/assets`}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl text-center sm:w-auto bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500"
         >
           Manage Assets
           <ArrowRight size={18} />
@@ -401,10 +402,10 @@ export default function EditGame() {
       </section>
 
       {/* Character Manager */}
-      <section className="mt-8 rounded-2xl border border-white/10 bg-[#171725] p-6">
-        <div className="flex items-center gap-3">
+      <section className="mt-8 min-w-0 rounded-2xl border border-white/10 bg-[#171725] p-4 sm:p-6">
+        <div className="flex min-w-0 items-start gap-3">
           <Users className="text-purple-400" />
-          <h2 className="text-xl font-semibold">
+          <h2 className="min-w-0 break-words text-lg font-semibold sm:text-xl">
             Character Manager
           </h2>
         </div>
@@ -416,7 +417,7 @@ export default function EditGame() {
 
         <Link
           to={`/creator/games/${gameId}/characters`}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl text-center sm:w-auto bg-purple-600 px-5 py-3 font-semibold hover:bg-purple-500"
         >
           Manage Characters
           <ArrowRight size={18} />
@@ -434,7 +435,7 @@ export default function EditGame() {
 
       {/* Danger Zone */}
       {canDelete && (
-        <section className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/5 p-6">
+        <section className="mt-8 min-w-0 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-red-300">
             Danger Zone
           </h2>
@@ -447,13 +448,14 @@ export default function EditGame() {
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold hover:bg-red-500 disabled:opacity-50"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl text-center sm:w-auto bg-red-600 px-5 py-3 font-semibold hover:bg-red-500 disabled:opacity-50"
           >
             <Trash2 size={18} />
             {deleting ? "Deleting..." : "Delete Draft Game"}
           </button>
         </section>
       )}
+      {dialog}
     </main>
   );
 }

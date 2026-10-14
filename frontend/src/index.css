@@ -1,9 +1,27 @@
 @import "tailwindcss";
 
+/* Phase 13.4.1 — shared design tokens; compatible with existing Tailwind classes. */
 :root {
   font-family: Inter, system-ui, sans-serif;
   color: #f8fafc;
   background: #09090f;
+  color-scheme: dark;
+
+  --vn-bg: #09090f;
+  --vn-surface: #171725;
+  --vn-surface-raised: #1e1e30;
+  --vn-input: #10101b;
+  --vn-border: rgba(255, 255, 255, 0.12);
+  --vn-text: #f8fafc;
+  --vn-muted: #a1a1aa;
+  --vn-primary: #7c3aed;
+  --vn-primary-hover: #8b5cf6;
+  --vn-success: #10b981;
+  --vn-danger: #ef4444;
+  --vn-focus: #c4b5fd;
+  --vn-radius: 0.75rem;
+  --vn-radius-lg: 1rem;
+  --vn-transition: 160ms ease;
 }
 
 body {
@@ -12,10 +30,204 @@ body {
 }
 
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
 }
 
 button {
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Accessible focus indicator without changing existing component layouts. */
+:where(button, a, input, textarea, select, [role="button"]):focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+/* Opt-in shared component classes. Existing JSX continues to work unchanged. */
+.vn-card {
+  min-width: 0;
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius-lg);
+  background: var(--vn-surface);
+}
+
+.vn-field {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--vn-border);
+  border-radius: 0.625rem;
+  background: var(--vn-input);
+  color: var(--vn-text);
+  padding: 0.625rem 0.875rem;
+  transition: border-color var(--vn-transition), box-shadow var(--vn-transition);
+}
+
+.vn-field::placeholder {
+  color: var(--vn-muted);
+}
+
+.vn-field:focus {
+  border-color: var(--vn-primary-hover);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.vn-field:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.vn-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #d4d4d8;
+}
+
+.vn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  max-width: 100%;
+  padding: 0.625rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--vn-radius);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  text-align: center;
+  transition: background-color var(--vn-transition), border-color var(--vn-transition), opacity var(--vn-transition);
+}
+
+.vn-btn:disabled {
+  opacity: 0.5;
+}
+
+.vn-btn-primary {
+  background: var(--vn-primary);
+  color: white;
+}
+
+.vn-btn-primary:hover:not(:disabled) {
+  background: var(--vn-primary-hover);
+}
+
+.vn-btn-secondary {
+  border-color: var(--vn-border);
+  background: var(--vn-surface);
+  color: var(--vn-text);
+}
+
+.vn-btn-secondary:hover:not(:disabled) {
+  background: var(--vn-surface-raised);
+}
+
+.vn-btn-danger {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+
+.vn-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.vn-heading {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--vn-text);
+}
+
+.vn-muted {
+  color: var(--vn-muted);
+}
+
+.vn-alert {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  padding: 1rem;
+}
+
+.vn-alert-success {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.1);
+  color: #6ee7b7;
+}
+
+.vn-alert-error {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vn-btn,
+  .vn-field {
+    transition: none;
+  }
+}
+
+/* Phase 13.4.4–13.4.5: progressive interaction and accessibility polish. */
+:where(button, a, input, textarea, select, summary, [role="button"]):focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 3px;
+}
+:where(button, a, [role="button"]):not(:disabled) {
+  -webkit-tap-highlight-color: rgba(139, 92, 246, .2);
+  touch-action: manipulation;
+}
+:where(button, [role="button"]):disabled,
+:where(button, [role="button"])[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+:where(button, [role="button"]):not(:disabled):active {
+  filter: brightness(.92);
+}
+:where(button, a, input, select, textarea) {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+}
+:where(input, textarea, select)[aria-invalid="true"] {
+  border-color: #f87171;
+}
+:where(input, textarea, select)[aria-invalid="true"]:focus-visible {
+  outline-color: #fca5a5;
+}
+:where(input, textarea, select):disabled {
+  cursor: not-allowed;
+  opacity: .65;
+}
+:where(a, button, p, h1, h2, h3, label) {
+  overflow-wrap: break-word;
+}
+@media (hover: hover) and (pointer: fine) {
+  .vn-card.vn-interactive:hover {
+    border-color: rgba(167, 139, 250, .4);
+    background: var(--vn-surface-raised);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

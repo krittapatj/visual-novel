@@ -4,7 +4,8 @@ const jwt = require('jsonwebtoken');
 const {
   findUserByEmail,
   findUserById,
-  createUser
+  createUser,
+  updateUserDisplayName
 } = require('../models/userModel');
 
 const createToken = (userId) => {
@@ -203,8 +204,86 @@ const getProfile = async (req, res) => {
   }
 };
 
+
+const updateProfile = async (req, res) => {
+  try {
+    const body = req.body;
+
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).length !== 1 ||
+      !Object.prototype.hasOwnProperty.call(body, 'display_name')
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only display_name can be updated'
+      });
+    }
+
+    const { display_name } = body;
+
+    if (typeof display_name !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Display name must be a string'
+      });
+    }
+
+    const cleanDisplayName = display_name.trim();
+
+    if (
+      cleanDisplayName.length < 1 ||
+      cleanDisplayName.length > 100
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Display name must be 1-100 characters'
+      });
+    }
+
+    const userId = req.user.userId;
+
+    const currentUser = await findUserById(userId);
+
+    if (!currentUser || currentUser.status !== 'active') {
+      return res.status(401).json({
+        success: false,
+        message: 'User unavailable'
+      });
+    }
+
+    await updateUserDisplayName(userId, cleanDisplayName);
+
+    const updatedUser = await findUserById(userId);
+
+    if (!updatedUser || updatedUser.status !== 'active') {
+      return res.status(401).json({
+        success: false,
+        message: 'User unavailable'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+
 module.exports = {
   register,
   login,
-  getProfile
+  getProfile,
+  updateProfile
 };

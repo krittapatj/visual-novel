@@ -1,3 +1,5 @@
+import EmptyState from "../components/ui/EmptyState";
+import LoadingState from "../components/ui/LoadingState";
 
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -263,11 +265,7 @@ export default function MyGames() {
   // ==============================
 
   if (loading) {
-    return (
-      <main className="mx-auto max-w-7xl px-6 py-16 text-center text-gray-400">
-        กำลังโหลด My Games...
-      </main>
-    );
+    return <LoadingState message="กำลังโหลด My Games..." fullPage />;
   }
 
   // ==============================
@@ -325,27 +323,11 @@ export default function MyGames() {
 
       {/* Empty State */}
       {games.length === 0 ? (
-        <section className="rounded-2xl border border-white/10 bg-[#171722] px-6 py-16 text-center">
-          <div className="mb-4 text-5xl">
-            🎮
-          </div>
-
-          <h2 className="text-xl font-semibold">
-            ยังไม่มีเกมใน My Games
-          </h2>
-
-          <p className="mt-2 text-gray-400">
-            เริ่มเล่นเกมและบันทึกความคืบหน้า
-            แล้วเกมจะปรากฏที่นี่
-          </p>
-
-          <Link
-            to="/games"
-            className="mt-6 inline-block rounded-lg bg-purple-600 px-6 py-3 transition hover:bg-purple-500"
-          >
-            สำรวจเกม
-          </Link>
-        </section>
+<EmptyState
+          title="ยังไม่มีเกมใน My Games"
+          description="เริ่มเล่นเกมและบันทึกความคืบหน้า แล้วเกมจะปรากฏที่นี่"
+          action={<Link to="/games" className="inline-flex w-full justify-center rounded-lg bg-purple-600 px-6 py-3 text-white transition hover:bg-purple-500 sm:w-auto">สำรวจเกม</Link>}
+        />
       ) : (
         <>
           {/* Recently Played */}

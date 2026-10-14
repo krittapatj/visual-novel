@@ -1,3 +1,5 @@
+import { ToastProvider } from "./components/ui/ToastProvider";
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
@@ -26,6 +28,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ToastProvider>
         <div className="min-h-screen bg-[#09090f] text-white">
           <Navbar />
 
@@ -83,6 +86,7 @@ export default function App() {
             />
           </Routes>
         </div>
+      </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

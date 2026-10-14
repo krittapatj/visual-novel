@@ -1,3 +1,7 @@
+import { useToast } from "../components/ui/ToastProvider";
+import useConfirm from "../components/ui/useConfirm";
+import EmptyState from "../components/ui/EmptyState";
+import LoadingState from "../components/ui/LoadingState";
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
@@ -31,7 +35,7 @@ const TYPES = [
 ];
 
 const inputClass =
-  'w-full rounded-lg border border-white/10 bg-[#10101b] px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500';
+  'block w-full min-w-0 rounded-lg border border-white/10 bg-[#10101b] px-3 py-3 text-base text-white outline-none focus:border-purple-500 sm:text-sm';
 
 function getImageUrl(filePath) {
   if (!filePath) return '';
@@ -50,6 +54,8 @@ function formatSize(bytes) {
 
 export default function AssetManager() {
   const { gameId } = useParams();
+  const { notify } = useToast();
+  const { confirm, dialog } = useConfirm();
 
   const [game, setGame] = useState(null);
   const [assets, setAssets] = useState([]);
@@ -184,6 +190,7 @@ export default function AssetManager() {
 
       setAssets((current) => [newAsset, ...current]);
       setMessage('Image uploaded successfully.');
+      notify('Image uploaded successfully.', "success");
       resetForm();
     } catch (err) {
       setError(
@@ -196,9 +203,11 @@ export default function AssetManager() {
   };
 
   const handleDelete = async (asset) => {
-    const confirmed = window.confirm(
-      `Delete "${asset.asset_name}" from the Asset Library?`
-    );
+    const confirmed = await confirm({
+      title: "Delete asset?",
+      description: `Delete "${asset.asset_name}" from the Asset Library?`,
+      confirmLabel: "Delete Asset", danger: true,
+    });
 
     if (!confirmed) return;
 
@@ -216,6 +225,7 @@ export default function AssetManager() {
       );
 
       setMessage('Asset deleted successfully.');
+      notify('Asset deleted successfully.', "success");
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -227,12 +237,7 @@ export default function AssetManager() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center gap-3 text-gray-400">
-        <LoaderCircle className="animate-spin" size={20} />
-        Loading Asset Manager...
-      </div>
-    );
+    return <LoadingState message="Loading Asset Manager..." fullPage />;
   }
 
   if (!game) {
@@ -244,7 +249,7 @@ export default function AssetManager() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-5 py-10 text-white">
+    <main className="mx-auto min-h-screen max-w-7xl w-full min-w-0 px-4 py-6 text-white sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <Link
         to={`/creator/games/${gameId}/edit`}
         className="mb-6 inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white"
@@ -253,10 +258,10 @@ export default function AssetManager() {
         Back to Edit Game
       </Link>
 
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Asset Library</h1>
-          <p className="mt-2 text-gray-400">
+      <div className="mb-7 flex min-w-0 flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold sm:text-3xl">Asset Library</h1>
+          <p className="mt-2 break-words text-gray-400">
             Manage images for {game.title}
           </p>
         </div>
@@ -267,7 +272,7 @@ export default function AssetManager() {
             setError('');
             setShowUpload(true);
           }}
-          className="flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-3 font-medium hover:bg-purple-500"
+          className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-purple-600 px-5 py-3 font-medium hover:bg-purple-500 sm:w-auto"
         >
           <Plus size={19} />
           Upload Image
@@ -277,7 +282,7 @@ export default function AssetManager() {
       {error && (
         <div
           role="alert"
-          className="mb-5 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300"
+          className="mb-5 flex min-w-0 items-start gap-2 break-words rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300"
         >
           <AlertCircle size={18} />
           {error}
@@ -293,11 +298,11 @@ export default function AssetManager() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex min-w-0 gap-2 overflow-x-auto pb-2">
         <button
           type="button"
           onClick={() => setFilter('all')}
-          className={`rounded-lg px-4 py-2 text-sm ${
+          className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm ${
             filter === 'all'
               ? 'bg-purple-600 text-white'
               : 'bg-[#171725] text-gray-300'
@@ -311,7 +316,7 @@ export default function AssetManager() {
             key={type.value}
             type="button"
             onClick={() => setFilter(type.value)}
-            className={`rounded-lg px-4 py-2 text-sm ${
+            className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm ${
               filter === type.value
                 ? 'bg-purple-600 text-white'
                 : 'bg-[#171725] text-gray-300'
@@ -327,24 +332,13 @@ export default function AssetManager() {
       </div>
 
       {filteredAssets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/15 bg-[#141420] px-6 py-20 text-center">
-          <ImageIcon
-            size={44}
-            className="mx-auto mb-4 text-gray-500"
-          />
-          <h2 className="text-lg font-semibold">
-            No images found
-          </h2>
-          <p className="mt-2 text-sm text-gray-400">
-            Upload an image to start building your visual novel.
-          </p>
-        </div>
+<EmptyState icon={ImageIcon} title="No images found" description="Upload an image to start building your visual novel." />
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {filteredAssets.map((asset) => (
             <div
               key={asset.asset_id}
-              className="overflow-hidden rounded-xl border border-white/10 bg-[#171725]"
+              className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#171725]"
             >
               <div className="flex aspect-[4/3] items-center justify-center bg-[#0c0c15]">
                 <img
@@ -391,14 +385,14 @@ export default function AssetManager() {
       )}
 
       {showUpload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="upload-title"
-            className="w-full max-w-lg rounded-2xl border border-white/15 bg-[#171725] p-6 shadow-2xl"
+            className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-[#171725] p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
           >
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-5 flex min-w-0 items-center justify-between gap-3 sm:mb-6">
               <h2 id="upload-title" className="text-xl font-bold">
                 Upload Image
               </h2>
@@ -420,7 +414,7 @@ export default function AssetManager() {
                   Image File
                 </label>
 
-                <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-purple-500/30 bg-[#10101b] p-4 hover:border-purple-500">
+                <label className="flex min-h-36 cursor-pointer flex-col sm:min-h-44 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-purple-500/30 bg-[#10101b] p-4 hover:border-purple-500">
                   {previewUrl ? (
                     <img
                       src={previewUrl}
@@ -497,12 +491,12 @@ export default function AssetManager() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={resetForm}
                   disabled={uploading}
-                  className="rounded-lg border border-white/15 px-5 py-2.5 text-sm"
+                  className="w-full rounded-lg border border-white/15 px-5 py-3 text-sm sm:w-auto"
                 >
                   Cancel
                 </button>
@@ -510,7 +504,7 @@ export default function AssetManager() {
                 <button
                   type="submit"
                   disabled={uploading || !image}
-                  className="flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 px-5 py-3 text-sm font-medium disabled:opacity-50 sm:w-auto"
                 >
                   <Upload size={16} />
                   {uploading ? 'Uploading...' : 'Upload'}
@@ -520,6 +514,7 @@ export default function AssetManager() {
           </div>
         </div>
       )}
+    {dialog}
     </main>
   );
 }

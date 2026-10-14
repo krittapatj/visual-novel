@@ -4,9 +4,11 @@ import { ArrowLeft } from 'lucide-react';
 
 import GameForm from '../components/GameForm';
 import { createGame } from '../api/games';
+import { useToast } from "../components/ui/ToastProvider";
 
 export default function CreateGame() {
   const navigate = useNavigate();
+  const { notify } = useToast();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,6 +19,7 @@ export default function CreateGame() {
 
     try {
       const game = await createGame(data);
+      notify("Game created successfully.", "success");
 
       navigate(`/creator/games/${game.game_id}/edit`, {
         replace: true
@@ -32,22 +35,22 @@ export default function CreateGame() {
   };
 
   return (
-    <main className="mx-auto max-w-3xl px-5 py-12">
+    <main className="mx-auto w-full min-w-0 max-w-3xl px-4 py-8 sm:px-5 sm:py-12">
       <Link
         to="/creator"
-        className="mb-8 inline-flex items-center gap-2 text-gray-400 hover:text-white"
+        className="mb-7 inline-flex min-h-10 items-center gap-2 text-sm text-gray-400 sm:mb-8 hover:text-white"
       >
         <ArrowLeft size={18} />
         Back to Dashboard
       </Link>
 
-      <h1 className="text-3xl font-bold">Create New Game</h1>
-      <p className="mb-8 mt-3 text-gray-400">
+      <h1 className="break-words text-2xl font-bold sm:text-3xl">Create New Game</h1>
+      <p className="mb-7 mt-3 break-words text-sm text-gray-400 sm:mb-8 sm:text-base">
         Start by giving your visual novel a title and description.
       </p>
 
       {error && (
-        <p role="alert" className="mb-5 text-red-400">
+        <p role="alert" className="mb-5 break-words rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           {error}
         </p>
       )}

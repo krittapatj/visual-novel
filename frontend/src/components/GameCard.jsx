@@ -1,10 +1,7 @@
-import { Link } from 'react-router-dom';
-import { BookOpen, UserRound } from 'lucide-react';
+import { Link } from "react-router-dom";
+import { BookOpen, UserRound } from "lucide-react";
 
-export default function GameCard({
-  game,
-  creatorMode = false
-}) {
+export default function GameCard({ game, creatorMode = false }) {
   const detailPath = creatorMode
     ? `/creator/games/${game.game_id}/edit`
     : `/games/${game.game_id}`;
@@ -12,7 +9,7 @@ export default function GameCard({
   return (
     <Link
       to={detailPath}
-      className="group overflow-hidden rounded-2xl border border-white/10 bg-[#171725] transition hover:-translate-y-1 hover:border-purple-500/40"
+      className="group block min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#171725] transition hover:-translate-y-1 hover:border-purple-500/40 focus-visible:outline-2 focus-visible:outline-purple-400"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-purple-900/50 to-indigo-950">
         {game.cover_url ? (
@@ -28,11 +25,13 @@ export default function GameCard({
         )}
 
         {creatorMode && (
-          <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${
-            game.status === 'published'
-              ? 'bg-emerald-500/90 text-white'
-              : 'bg-amber-500/90 text-black'
-          }`}>
+          <span
+            className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${
+              game.status === "published"
+                ? "bg-emerald-500/90 text-white"
+                : "bg-amber-500/90 text-black"
+            }`}
+          >
             {game.status}
           </span>
         )}
@@ -44,18 +43,21 @@ export default function GameCard({
         </h3>
 
         <p className="mt-2 line-clamp-2 min-h-10 text-sm text-gray-400">
-          {game.description || 'No description available.'}
+          {game.description || "No description available."}
         </p>
 
         {!creatorMode && game.creator_username && (
-          <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-            <UserRound size={15} />
-            {game.creator_username}
+          <div className="mt-4 flex min-w-0 items-center gap-2 text-xs text-gray-500">
+            <UserRound size={15} className="shrink-0" />
+
+            <span className="min-w-0 truncate" title={game.creator_username}>
+              {game.creator_username}
+            </span>
           </div>
         )}
 
         <div className="mt-5 flex items-center gap-2 text-sm font-medium text-purple-400">
-          {creatorMode ? 'Manage Game' : 'View Details'}
+          {creatorMode ? "Manage Game" : "View Details"}
           <span aria-hidden="true">→</span>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import LoadingState from "../components/ui/LoadingState";
+import { useToast } from "../components/ui/ToastProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -93,6 +95,7 @@ function validateStory(nodes, edges) {
 }
 
 function StoryEditorContent() {
+  const { notify } = useToast();
   const { gameId, chapterId } = useParams();
 
   const [game, setGame] = useState(null);
@@ -457,6 +460,7 @@ function StoryEditorContent() {
       setDirty(false);
 
       setMessage("Story saved successfully.");
+      notify("Story saved successfully.", "success");
     } catch (err) {
       setError(err.response?.data?.message || "Unable to save story.");
     } finally {
@@ -465,9 +469,7 @@ function StoryEditorContent() {
   };
 
   if (loading) {
-    return (
-      <p className="p-12 text-center text-gray-400">Loading Story Editor...</p>
-    );
+    return <LoadingState message="Loading Story Editor..." fullPage />;
   }
 
   if (!game) {
@@ -479,9 +481,9 @@ function StoryEditorContent() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-73px)] flex-col bg-[#09090f]">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
-        <div>
+    <main className="flex min-h-[calc(100dvh-73px)] min-w-0 flex-col bg-[#09090f] text-white">
+      <header className="flex min-w-0 flex-col gap-4 border-b border-white/10 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
           <Link
             to={`/creator/games/${gameId}/chapters`}
             className="mb-2 inline-flex items-center gap-2 text-xs text-gray-400 hover:text-white"
@@ -490,7 +492,7 @@ function StoryEditorContent() {
             Back to Chapters
           </Link>
 
-          <h1 className="font-semibold">
+          <h1 className="break-words text-sm font-semibold sm:text-base">
             {game.title} / Chapter {chapterId}
           </h1>
 
@@ -499,10 +501,10 @@ function StoryEditorContent() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <button
             onClick={() => setMode("visual")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm ${
+            className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm sm:px-4 ${
               mode === "visual" ? "bg-purple-600" : "bg-[#171725]"
             }`}
           >
@@ -512,7 +514,7 @@ function StoryEditorContent() {
 
           <button
             onClick={() => setMode("form")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm ${
+            className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm sm:px-4 ${
               mode === "form" ? "bg-purple-600" : "bg-[#171725]"
             }`}
           >
@@ -522,7 +524,7 @@ function StoryEditorContent() {
 
           <button
             onClick={() => setPreview(true)}
-            className="flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm"
+            className="flex min-w-0 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 py-2.5 text-sm sm:px-4"
           >
             <Eye size={17} />
             Preview
@@ -531,7 +533,7 @@ function StoryEditorContent() {
           <button
             onClick={save}
             disabled={saving || !dirty}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="flex min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-medium disabled:opacity-50 sm:px-4"
           >
             <Save size={17} />
 
@@ -543,7 +545,7 @@ function StoryEditorContent() {
       {error && (
         <div
           role="alert"
-          className="mx-5 mt-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300"
+          className="mx-4 mt-4 flex min-w-0 items-start gap-2 break-words rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300"
         >
           <AlertCircle size={18} />
 
@@ -552,15 +554,17 @@ function StoryEditorContent() {
       )}
 
       {message && (
-        <p role="status" className="mx-5 mt-4 text-sm text-emerald-400">
+        <p role="status" className="mx-4 mt-4 break-words text-sm text-emerald-400">
           {message}
         </p>
       )}
 
-      <div className="flex min-h-[650px] flex-1 flex-col lg:flex-row">
-        <NodePalette onAdd={addNode} />
+      <div className="flex min-w-0 flex-1 flex-col lg:min-h-[650px] lg:flex-row">
+        <div className="min-w-0 shrink-0 overflow-x-auto lg:overflow-visible">
+          <NodePalette onAdd={addNode} />
+        </div>
 
-        <div className="min-h-[550px] min-w-0 flex-1">
+        <div className="relative h-[55dvh] min-h-[350px] min-w-0 flex-none overflow-hidden sm:h-[65dvh] lg:h-auto lg:min-h-[550px] lg:flex-1">
           {mode === "visual" ? (
             <ReactFlow
               nodes={nodes}
@@ -594,14 +598,16 @@ function StoryEditorContent() {
           )}
         </div>
 
-        <NodeProperties
+        <div className="min-w-0 shrink-0 overflow-x-auto lg:overflow-visible">
+          <NodeProperties
           node={selectedNode}
           onUpdate={updateNode}
           onDelete={deleteNode}
           onRemoveOption={removeOption}
           assets={assets}
           characters={characters}
-        />
+          />
+        </div>
       </div>
 
       {preview && (

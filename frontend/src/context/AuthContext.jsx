@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -14,26 +15,42 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     const restoreSession = async () => {
       const token = sessionStorage.getItem('token');
 
       if (!token) {
-        setLoading(false);
+        if (active) {
+          setUser(null);
+          setLoading(false);
+        }
         return;
       }
 
       try {
         const response = await api.get('/auth/me');
-        setUser(response.data.user);
+
+        if (active) {
+          setUser(response.data.user);
+        }
       } catch {
-        sessionStorage.removeItem('token');
-        setUser(null);
+        if (active) {
+          sessionStorage.removeItem('token');
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     restoreSession();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -42,12 +59,12 @@ export function AuthProvider({ children }) {
       password
     });
 
-    const { token, user } = response.data;
+    const { token, user: loggedInUser } = response.data;
 
     sessionStorage.setItem('token', token);
-    setUser(user);
+    setUser(loggedInUser);
 
-    return user;
+    return loggedInUser;
   };
 
   const register = async (formData) => {
@@ -57,6 +74,28 @@ export function AuthProvider({ children }) {
     );
 
     return response.data;
+  };
+
+  const updateUser = (updatedUser) => {
+    if (!updatedUser || typeof updatedUser !== 'object') {
+      return;
+    }
+
+    setUser((currentUser) => {
+      if (!currentUser) return currentUser;
+
+      if (
+        Number(currentUser.user_id) !==
+        Number(updatedUser.user_id)
+      ) {
+        return currentUser;
+      }
+
+      return {
+        ...currentUser,
+        ...updatedUser
+      };
+    });
   };
 
   const logout = () => {
@@ -72,6 +111,7 @@ export function AuthProvider({ children }) {
         login,
         register,
         logout,
+        updateUser,
         isAuthenticated: Boolean(user)
       }}
     >

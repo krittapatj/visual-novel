@@ -1,3 +1,4 @@
+import LoadingState from "../components/ui/LoadingState";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -861,12 +862,7 @@ export default function VisualNovelPlayer() {
   // ==============================
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center gap-3 bg-[#0d0d17] text-white">
-        <Loader2 className="animate-spin text-purple-400" />
-        Loading game...
-      </div>
-    );
+    return <LoadingState message="Loading game..." fullPage />;
   }
 
   if (error) {
@@ -904,29 +900,29 @@ export default function VisualNovelPlayer() {
   return (
     <main className="min-h-screen bg-[#090910] text-white">
       {/* Top Navigation */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#151521] px-5 py-3">
+      <header className="grid grid-cols-1 gap-3 border-b border-white/10 bg-[#151521] px-4 py-3 sm:px-5 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
         <Link
           to={`/games/${gameId}`}
-          className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+          className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-white/5 px-2 text-xs text-gray-300 hover:bg-white/10 hover:text-white sm:gap-2 sm:text-sm"
         >
           <ArrowLeft size={17} />
           Exit Game
         </Link>
 
-        <div className="text-center">
-          <h1 className="text-sm font-semibold">
+        <div className="min-w-0 text-center">
+          <h1 className="break-words text-sm font-semibold">
             {gameData.game?.title || "Visual Novel"}
           </h1>
 
-          <p className="text-xs text-gray-400">{chapter.title}</p>
+          <p className="break-words text-xs text-gray-400">{chapter.title}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 lg:justify-self-end">
           {/* Manual Save */}
           <button
             type="button"
             onClick={() => setModalMode("save")}
-            className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+            className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-white/5 px-2 text-xs text-purple-300 hover:bg-white/10 hover:text-purple-200 sm:gap-2 sm:text-sm"
           >
             <Save size={16} />
             Save
@@ -936,7 +932,7 @@ export default function VisualNovelPlayer() {
           <button
             type="button"
             onClick={() => setModalMode("load")}
-            className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+            className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-white/5 px-2 text-xs text-purple-300 hover:bg-white/10 hover:text-purple-200 sm:gap-2 sm:text-sm"
           >
             <FolderOpen size={16} />
             Load
@@ -947,7 +943,7 @@ export default function VisualNovelPlayer() {
             type="button"
             onClick={handleAutoLoad}
             disabled={autoLoading}
-            className="flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-white/5 px-2 text-xs text-emerald-300 hover:bg-white/10 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:text-sm"
           >
             {autoLoading ? (
               <Loader2 size={16} className="animate-spin" />
@@ -961,7 +957,7 @@ export default function VisualNovelPlayer() {
           <button
             type="button"
             onClick={() => setHistoryOpen(true)}
-            className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+            className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-white/5 px-2 text-xs text-purple-300 hover:bg-white/10 hover:text-purple-200 sm:gap-2 sm:text-sm"
           >
             <History size={16} />
             History
@@ -971,7 +967,7 @@ export default function VisualNovelPlayer() {
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/50 px-4 py-2 text-sm text-white hover:bg-black/70"
+            className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-white/20 bg-black/50 px-2 text-xs text-white hover:bg-black/70 sm:gap-2 sm:px-3 sm:text-sm"
           >
             <Settings size={18} />
             Settings
@@ -981,7 +977,7 @@ export default function VisualNovelPlayer() {
           <button
             type="button"
             onClick={handleRestart}
-            className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+            className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-white/5 px-2 text-xs text-gray-300 hover:bg-white/10 hover:text-white sm:gap-2 sm:text-sm"
           >
             <RotateCcw size={16} />
             Restart
@@ -993,15 +989,15 @@ export default function VisualNovelPlayer() {
       {notice && (
         <div
           role="status"
-          className="mx-auto mt-4 max-w-6xl rounded-lg border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm text-purple-200"
+          className="mx-3 mt-4 break-words rounded-lg border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm text-purple-200 sm:mx-auto sm:max-w-6xl"
         >
           {notice}
         </div>
       )}
 
       {/* Game Stage */}
-      <div className="mx-auto flex max-w-6xl items-center justify-center px-3 py-6">
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#292044] to-[#11111e] shadow-2xl">
+      <div className="mx-auto flex max-w-6xl items-center justify-center px-3 py-4 sm:py-6">
+        <div className="relative flex min-h-[520px] w-full flex-col justify-end overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#292044] to-[#11111e] shadow-2xl sm:aspect-video sm:min-h-0">
           {/* Background */}
           {background && (
             <img
@@ -1016,27 +1012,27 @@ export default function VisualNovelPlayer() {
             <img
               src={characterImage}
               alt={speakerName || "Character"}
-              className="pointer-events-none absolute bottom-0 left-1/2 z-10 h-[85%] max-w-[70%] -translate-x-1/2 object-contain object-bottom"
+              className="pointer-events-none absolute bottom-0 left-1/2 z-10 h-[75%] max-w-[90%] -translate-x-1/2 object-contain object-bottom sm:h-[85%] sm:max-w-[70%]"
             />
           )}
 
           {/* Dialogue */}
           {nodeType === "dialogue" && (
-            <div className="absolute inset-x-3 bottom-3 z-20 rounded-xl border border-white/15 bg-[#10101b]/90 p-4 shadow-xl backdrop-blur-md md:inset-x-8 md:bottom-6 md:p-6">
+            <div className="relative z-20 m-3 max-h-[350px] overflow-y-auto rounded-xl border border-white/15 bg-[#10101b]/90 p-4 shadow-xl backdrop-blur-md sm:absolute sm:inset-x-3 sm:bottom-3 sm:m-0 sm:max-h-[75%] md:inset-x-8 md:bottom-6 md:p-6">
               {speakerName && (
                 <p className="mb-2 font-semibold text-purple-300">
                   {speakerName}
                 </p>
               )}
 
-              <p className="min-h-12 whitespace-pre-wrap text-sm leading-relaxed md:text-lg">
+              <p className="min-h-12 whitespace-pre-wrap break-words text-sm leading-relaxed md:text-lg">
                 {text.slice(0, visibleCharacters)}
               </p>
 
               <button
                 type="button"
                 onClick={handleNext}
-                className="mt-3 flex items-center gap-1 text-sm text-purple-300 hover:text-purple-200"
+                className="mt-3 flex min-h-11 items-center gap-1 text-sm font-medium text-purple-300 hover:text-purple-200"
               >
                 Continue
                 <ArrowRight size={16} />
@@ -1046,8 +1042,8 @@ export default function VisualNovelPlayer() {
 
           {/* Choice */}
           {nodeType === "choice" && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/55 p-6">
-              <h2 className="mb-3 text-center text-xl font-semibold">
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-start gap-3 overflow-y-auto bg-black/65 p-4 py-6 sm:justify-center sm:p-6">
+              <h2 className="mb-3 max-w-full break-words text-center text-lg font-semibold sm:text-xl">
                 {data.question || data.text || "Choose your path"}
               </h2>
 
@@ -1056,7 +1052,7 @@ export default function VisualNovelPlayer() {
                   type="button"
                   key={option.id || index}
                   onClick={() => handleChoice(option)}
-                  className="w-full max-w-lg rounded-xl border border-white/20 bg-[#211a38]/90 px-5 py-3 text-center transition hover:border-purple-400 hover:bg-purple-700/70"
+                  className="min-h-11 w-full max-w-lg shrink-0 break-words rounded-xl border border-white/20 bg-[#211a38]/90 px-4 py-3 text-center transition hover:border-purple-400 hover:bg-purple-700/70 sm:px-5"
                 >
                   {option.text || option.label || `Option ${index + 1}`}
                 </button>
@@ -1066,13 +1062,13 @@ export default function VisualNovelPlayer() {
 
           {/* Ending */}
           {isEnding && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 bg-black/65 p-6 text-center">
-              <h2 className="text-3xl font-bold text-purple-200">
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-start gap-5 overflow-y-auto bg-black/65 p-4 py-8 text-center sm:justify-center sm:p-6">
+              <h2 className="max-w-full break-words text-2xl font-bold text-purple-200 sm:text-3xl">
                 {data.title || "The End"}
               </h2>
 
               {data.text && (
-                <p className="max-w-xl text-gray-200">{data.text}</p>
+                <p className="max-w-xl whitespace-pre-wrap break-words text-gray-200">{data.text}</p>
               )}
 
               {chapterIndex < chapters.length - 1 ? (
@@ -1109,7 +1105,7 @@ export default function VisualNovelPlayer() {
 
           {/* Start / Scene */}
           {(nodeType === "start" || nodeType === "scene") && (
-            <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/20 p-8">
+            <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/20 p-4 sm:p-8">
               <button
                 type="button"
                 onClick={handleNext}
@@ -1125,7 +1121,7 @@ export default function VisualNovelPlayer() {
       </div>
 
       {/* Player Controls */}
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 pb-8">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 pb-8 sm:px-5">
         <button
           type="button"
           onClick={handleBack}
@@ -1136,7 +1132,7 @@ export default function VisualNovelPlayer() {
           Back
         </button>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4">
           {/* Auto Save Status */}
           {autoSaveStatus && (
             <div

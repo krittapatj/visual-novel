@@ -1,3 +1,4 @@
+import LoadingState from "../components/ui/LoadingState";
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -116,12 +117,7 @@ export default function GameDetails() {
   }, [game, gameId]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center gap-3 text-gray-400">
-        <Loader2 className="animate-spin" size={20} />
-        Loading game...
-      </div>
-    );
+    return <LoadingState message="Loading game..." fullPage />;
   }
 
   if (error || !game) {
@@ -155,7 +151,7 @@ export default function GameDetails() {
     : null;
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-12 text-white">
+    <main className="mx-auto max-w-6xl px-4 py-8 text-white sm:px-5 sm:py-12">
       <Link
         to="/games"
         className="mb-8 inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
@@ -164,9 +160,9 @@ export default function GameDetails() {
         Back to Library
       </Link>
 
-      <div className="grid gap-10 md:grid-cols-[350px_1fr]">
+      <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,350px)_minmax(0,1fr)] lg:gap-10">
         {/* Cover */}
-        <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-white/10 bg-[#191928]">
+        <div className="mx-auto aspect-[3/4] w-full max-w-[350px] overflow-hidden rounded-2xl lg:max-w-none border border-white/10 bg-[#191928]">
           {game.cover_url ? (
             <img
               src={game.cover_url}
@@ -181,19 +177,20 @@ export default function GameDetails() {
         </div>
 
         {/* Details */}
-        <div>
+        <div className="min-w-0">
           <div className="mb-3 inline-flex rounded-full border border-purple-500/20 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-300">
             Published Visual Novel
           </div>
 
-          <h1 className="text-3xl font-bold md:text-4xl">
+          <h1 className="break-words text-2xl font-bold sm:text-3xl lg:text-4xl">
             {game.title}
           </h1>
 
-          <div className="mt-4 flex items-center gap-2 text-sm text-gray-400">
-            <UserRound size={17} />
-            Created by{" "}
-            {game.creator_username || "Unknown Creator"}
+          <div className="mt-4 flex min-w-0 items-start gap-2 text-sm text-gray-400">
+            <UserRound size={17} className="mt-0.5 shrink-0" />
+            <span className="min-w-0 break-words">
+              Created by {game.creator_username || "Unknown Creator"}
+            </span>
           </div>
 
           {/* Published Info */}
@@ -227,18 +224,18 @@ export default function GameDetails() {
               About This Story
             </h2>
 
-            <p className="mt-3 whitespace-pre-wrap leading-relaxed text-gray-300">
+            <p className="mt-3 whitespace-pre-wrap break-words leading-relaxed text-gray-300">
               {game.description ||
                 "No description available."}
             </p>
           </section>
 
           {/* Actions */}
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {continueUrl && (
               <Link
                 to={continueUrl}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-6 py-3 font-semibold transition hover:bg-purple-500"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-6 py-3 font-semibold transition hover:bg-purple-500 sm:w-auto"
               >
                 <Play size={18} />
                 Continue Game
@@ -247,7 +244,7 @@ export default function GameDetails() {
 
             <Link
               to={playUrl}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold transition ${
+              className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold transition sm:w-auto ${
                 continueUrl
                   ? "border border-white/20 bg-white/10 hover:bg-white/20"
                   : "bg-purple-600 hover:bg-purple-500"
@@ -300,13 +297,13 @@ export default function GameDetails() {
                 {chapters.map((chapter, index) => (
                   <div
                     key={chapter.chapterId ?? index}
-                    className="flex items-center gap-4 rounded-xl border border-white/10 bg-[#151521] px-4 py-3"
+                    className="flex min-w-0 items-start gap-3 rounded-xl border border-white/10 bg-[#151521] px-4 py-3 sm:gap-4"
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-sm font-semibold text-purple-300">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-sm font-semibold text-purple-300">
                       {index + 1}
                     </span>
 
-                    <p className="text-sm text-gray-200">
+                    <p className="min-w-0 break-words pt-2 text-sm text-gray-200">
                       {chapter.title}
                     </p>
                   </div>

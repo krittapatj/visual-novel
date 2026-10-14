@@ -1,3 +1,4 @@
+
 const pool = require('../config/db');
 
 const findUserByEmail = async (email) => {
@@ -39,8 +40,22 @@ const createUser = async ({
   return result.insertId;
 };
 
+// UPDATE PROFILE
+const updateUserDisplayName = async (userId, displayName) => {
+  const [result] = await pool.execute(
+    `UPDATE users
+     SET display_name = ?
+     WHERE user_id = ?
+       AND status = 'active'`,
+    [displayName, userId]
+  );
+
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
-  createUser
+  createUser,
+  updateUserDisplayName
 };
