@@ -4,3 +4,5 @@ uploads/
 *.log
 backend/uploads/*
 !uploads/.gitkeep
+!.env.example
+.env.*
