@@ -1,10 +1,6 @@
-const fs = require('fs/promises');
-const path = require('path');
-const crypto = require('crypto');
+const { uploadImage, deleteImage } = require('../config/cloudinary');
 
 const Asset = require('../models/assetModel');
-
-const UPLOAD_DIR = path.resolve(__dirname, '../../uploads');
 
 const allowedTypes = [
   'background',
@@ -12,12 +8,6 @@ const allowedTypes = [
   'cover',
   'thumbnail'
 ];
-
-const imageTypes = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp'
-};
 
 function detectImageType(buffer) {
   if (
@@ -43,21 +33,8 @@ function detectImageType(buffer) {
   return null;
 }
 
-function getSafeFilePath(filePath) {
-  const filename = path.basename(filePath);
-
-  if (
-    !/^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(filename) ||
-    filePath !== `/uploads/${filename}`
-  ) {
-    return null;
-  }
-
-  return path.join(UPLOAD_DIR, filename);
-}
-
 async function uploadAsset(req, res) {
-  let savedFile = null;
+  let uploadedPublicId = null;
 
   try {
     const gameId = Number(req.params.gameId);
@@ -108,14 +85,9 @@ async function uploadAsset(req, res) {
       });
     }
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-
-    const filename = `${crypto.randomUUID()}.${imageTypes[mimeType]}`;
-    savedFile = path.join(UPLOAD_DIR, filename);
-
-    await fs.writeFile(savedFile, req.file.buffer, { flag: 'wx' });
-
-    const filePath = `/uploads/${filename}`;
+    const uploaded = await uploadImage(req.file.buffer, { gameId, assetType: asset_type });
+    uploadedPublicId = uploaded.public_id;
+    const filePath = uploaded.secure_url;
 
     const assetId = await Asset.createAsset({
       gameId,
@@ -141,8 +113,10 @@ async function uploadAsset(req, res) {
       }
     });
   } catch (error) {
-    if (savedFile) {
-      await fs.unlink(savedFile).catch(() => {});
+    if (uploadedPublicId) {
+      await deleteImage(uploadedPublicId).catch((cleanupError) => {
+        console.error('Cloudinary rollback failed:', cleanupError.message);
+      });
     }
 
     console.error('Upload asset error:', error);

@@ -17,8 +17,21 @@ const myGamesRoutes = require("./routes/myGamesRoutes");
 // Create an Express application
 const app = express();
 
+// Set FRONTEND_URL to a comma-separated list of trusted frontend origins.
+// Local development defaults to Vite on port 5173.
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL
+  origin(origin, callback) {
+    // Requests without an Origin header (e.g. server-to-server) are allowed.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS origin not allowed'));
+  }
 }));
 
 app.use(express.json({
@@ -48,6 +61,21 @@ app.use('/api', publishingRoutes);
 app.use('/api', publicPlayerRoutes);
 app.use("/api", saveSlotRoutes);
 app.use("/api", myGamesRoutes);
+
+// Centralized error handling: never expose stack traces in production.
+app.use((err, req, res, next) => {
+  if (err.message === 'CORS origin not allowed') {
+    return res.status(403).json({ success: false, message: 'Origin not allowed' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ success: false, message: 'Request body too large' });
+  }
+  console.error('Unhandled request error:', err);
+  return res.status(err.status && err.status >= 400 && err.status < 500 ? err.status : 500).json({
+    success: false,
+    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
+  });
+});
 
 // Catch-all route for undefined endpoints
 app.use((req, res) => {

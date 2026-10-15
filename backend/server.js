@@ -23,7 +23,7 @@ async function startServer() {
     console.log('Version:', rows[0].version);
 
     app.listen(PORT, () => {
-      console.log(`Server running at http://localhost:${PORT}`);
+      console.log(`Server listening on port ${PORT}`);
     });
 
   } catch (error) {
